@@ -420,6 +420,7 @@ function addCombatTargets() {
   missionComplete = false;
   missionStartedAt = performance.now();
   const spots = [[-7,0,-6],[7,0,-7],[-8,0,5],[8,0,6],[0,0,-9]];
+  const portraits=['assets/baoyu.webp','assets/daiyu.webp','assets/baochai.webp','assets/xifeng.webp','assets/jiamu.webp'];
   spots.forEach((p, i) => {
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color: i % 2 ? 0x315747 : 0x74332d, roughness: .68 });
@@ -437,6 +438,9 @@ function addCombatTargets() {
     const stand = new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,.16,16), new THREE.MeshStandardMaterial({color:0x17120e}));
     stand.position.y = .08;
     group.add(body, head, chest, armL, armR, legL, legR, stand); group.position.set(p[0], 0, p[2]);
+    const portrait=new THREE.Mesh(new THREE.PlaneGeometry(.86,1.85),new THREE.MeshBasicMaterial({transparent:true,side:THREE.DoubleSide}));
+    portrait.position.set(0,1.48,.19); portrait.userData.targetRoot=group; group.add(portrait);
+    new THREE.TextureLoader().load(portraits[i],tex=>{tex.colorSpace=THREE.SRGBColorSpace;portrait.material.map=tex;portrait.material.needsUpdate=true;});
     group.userData.alive = true;
     group.userData.health = i%3===0 ? 2 : 1;
     group.userData.armored = i%3===0;
@@ -444,7 +448,7 @@ function addCombatTargets() {
     group.userData.phase = Math.random()*Math.PI*2;
     group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
-    roomGroup.add(group); botGroups.push(group); targetMeshes.push(body,head,chest,armL,armR,legL,legR);
+    roomGroup.add(group); botGroups.push(group); targetMeshes.push(body,head,chest,armL,armR,legL,legR,portrait);
   });
 }
 
