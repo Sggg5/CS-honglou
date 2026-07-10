@@ -772,7 +772,7 @@ function updateBots(dt) {
     }
     bot.position.x=Math.max(-W/2+2,Math.min(W/2-2,bot.position.x));
     bot.position.z=Math.max(-D/2+2,Math.min(D/2-2,bot.position.z));
-    bot.position.y=Math.abs(Math.sin(bot.userData.phase*2))*.025;
+    bot.position.y=0;
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
       bot.userData.nextAttack=now+difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin);
       const from=bot.position.clone();from.y=2.05;const to=camera.position.clone();
@@ -861,7 +861,7 @@ function animate() {
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
   const bob = moving && started ? Math.sin(performance.now() * .012) * .012 : 0;
   if(bowCharging) document.querySelector('#charge span').style.width=`${Math.min(100,(performance.now()-chargeStarted)/9)}%`;
-  weapon3d.position.set(.43 + bob * .35, -.18 + Math.abs(bob), -.78 + recoil * .10);
+  weapon3d.position.set(.43 + bob * .35, -.18, -.78 + recoil * .10);
   weapon3d.rotation.x = recoil * .08;
   heldArrow.position.z = .18 + recoil * .24;
   pistol3d.position.z=-.62+recoil*.12; pistol3d.rotation.x=recoil*.14;
