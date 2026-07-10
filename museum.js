@@ -353,6 +353,9 @@ let doorMeshes = [];
 let targetMeshes = [];
 let botGroups = [];
 let playerHealth = 100;
+let missionStartedAt = 0;
+let missionComplete = false;
+const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200 };
 let ammo = 1, reserve = 30, score = 0, reloading = false, lastShot = 0;
 let current = null;
 let currentCenterpiece = null;
@@ -397,6 +400,8 @@ const FLOOR_TEX = floorTexture();
 function addCombatTargets() {
   targetMeshes = [];
   botGroups = [];
+  missionComplete = false;
+  missionStartedAt = performance.now();
   const spots = [[-7,0,-6],[7,0,-7],[-8,0,5],[8,0,6],[0,0,-9]];
   spots.forEach((p, i) => {
     const group = new THREE.Group();
@@ -690,7 +695,7 @@ function updateBots(dt) {
     bot.rotation.y=Math.atan2(dx,dz);
     bot.userData.phase+=dt*(1.5+i*.08);
     if(dist>4.6){
-      const speed=1.15*dt;
+      const speed=difficulty.speed*dt;
       bot.position.x+=dx/dist*speed+Math.cos(bot.userData.phase)*dt*.28;
       bot.position.z+=dz/dist*speed+Math.sin(bot.userData.phase)*dt*.28;
     } else {
@@ -701,13 +706,25 @@ function updateBots(dt) {
     bot.position.z=Math.max(-D/2+2,Math.min(D/2-2,bot.position.z));
     bot.position.y=Math.abs(Math.sin(bot.userData.phase*2))*.025;
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
-      bot.userData.nextAttack=now+1300+Math.random()*900;
+      bot.userData.nextAttack=now+difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin);
       const from=bot.position.clone();from.y=2.05;const to=camera.position.clone();
       const tracer=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0xff4938,transparent:true,opacity:.85}));
       scene.add(tracer);enemyTracers.push({mesh:tracer,born:now});
-      if(Math.random()<Math.max(.35,.82-dist/30)) damagePlayer(7+Math.floor(Math.random()*5));
+      if(Math.random()<Math.max(.35,.82-dist/30)) damagePlayer(difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1)));
     }
   });
+}
+
+function updateMission() {
+  const alive=botGroups.filter(b=>b.visible).length;
+  const total=botGroups.length;
+  document.getElementById('mission').textContent=`清除人机 ${total-alive} / ${total}`;
+  const elapsed=Math.floor((performance.now()-missionStartedAt)/1000);
+  document.getElementById('mission-time').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+  if(total>0&&alive===0&&!missionComplete){
+    missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
+    setPrompt('展厅已清除 · 推门进入下一间展厅');
+  }
 }
 
 function updateHover() {
@@ -769,6 +786,7 @@ function animate() {
   }
   if (currentCenterpiece) currentCenterpiece.rotation.y += dt * 0.4;
   if(started&&!detailOpen) updateBots(dt);
+  if(started&&!detailOpen) updateMission();
   // 枪械后坐力回弹与轻微呼吸摆动
   recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
