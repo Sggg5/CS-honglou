@@ -116,6 +116,22 @@ heldArrow.position.set(-.02,0,.18); weapon3d.add(heldArrow);
 let recoil = 0;
 const flyingArrows = [];
 
+// 备用武器：手枪与小刀
+const pistol3d = new THREE.Group(); pistol3d.position.set(.34,-.3,-.62); pistol3d.scale.setScalar(.78); camera.add(pistol3d);
+function pistolPart(geo,mat,x,y,z,rx=0,ry=0,rz=0){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);pistol3d.add(m);}
+const pistolMetal=new THREE.MeshStandardMaterial({color:0x343a40,metalness:.8,roughness:.25});
+pistolPart(new THREE.BoxGeometry(.2,.16,.62),pistolMetal,0,.04,-.12);
+pistolPart(new THREE.CylinderGeometry(.038,.038,.5,14),gunDark,0,.05,-.48,Math.PI/2);
+pistolPart(new THREE.BoxGeometry(.16,.38,.17),gunDark,0,-.25,.02,-.18);
+const knife3d = new THREE.Group(); knife3d.position.set(.34,-.28,-.58); knife3d.rotation.z=-.18; camera.add(knife3d);
+const blade=pistolPart; // 保留下方建模函数的简洁命名
+const knifeBlade=new THREE.Mesh(new THREE.BoxGeometry(.055,.08,.72),new THREE.MeshStandardMaterial({color:0xc7cbd0,metalness:.92,roughness:.14})); knifeBlade.position.z=-.34; knife3d.add(knifeBlade);
+const knifeTip=new THREE.Mesh(new THREE.ConeGeometry(.065,.22,4),knifeBlade.material); knifeTip.rotation.x=-Math.PI/2; knifeTip.position.z=-.8; knife3d.add(knifeTip);
+const knifeGrip=new THREE.Mesh(new THREE.BoxGeometry(.11,.12,.34),gunDark); knifeGrip.position.z=.18; knife3d.add(knifeGrip);
+let weaponMode='bow';
+const weaponState={bow:{ammo:1,reserve:30},gun:{ammo:12,reserve:48}};
+pistol3d.visible=false; knife3d.visible=false;
+
 let roomGroup = new THREE.Group();
 scene.add(roomGroup);
 
@@ -555,6 +571,9 @@ window.addEventListener('keydown', e => {
   wakeChrome();
   if (e.code === 'KeyE' && hoverDoor) go(hoverDoor.userData.target);
   if (e.code === 'KeyR') reloadWeapon();
+  if (e.code === 'Digit1') switchWeapon('bow');
+  if (e.code === 'Digit2') switchWeapon('gun');
+  if (e.code === 'Digit3') switchWeapon('knife');
   if (e.code === 'KeyM') toggleMap();
   if (e.code === 'KeyF') openDetail(current);
   if (e.code === 'Escape' && detailOpen) closeDetail();
@@ -570,42 +589,60 @@ canvas.addEventListener('mousedown', () => {
 });
 
 function updateAmmoHud() {
-  document.getElementById('ammo').textContent = reloading ? '搭箭中…' : `箭 ${ammo} / ${reserve}`;
+  const names={bow:'弓箭 [1]',gun:'手枪 [2]',knife:'小刀 [3]'};
+  document.getElementById('weapon-name').textContent=names[weaponMode];
+  document.getElementById('ammo').textContent = weaponMode==='knife' ? '近战' :
+    (reloading ? (weaponMode==='bow'?'搭箭中…':'换弹中…') : `${weaponMode==='bow'?'箭':'弹'} ${ammo} / ${reserve}`);
   document.getElementById('score').textContent = `命中 ${score}`;
 }
 
+function switchWeapon(mode){
+  if(mode===weaponMode)return;
+  if(weaponMode!=='knife') weaponState[weaponMode]={ammo,reserve};
+  weaponMode=mode; reloading=false;
+  weapon3d.visible=mode==='bow'; pistol3d.visible=mode==='gun'; knife3d.visible=mode==='knife';
+  if(mode!=='knife'){ammo=weaponState[mode].ammo;reserve=weaponState[mode].reserve;}
+  heldArrow.visible=mode==='bow'&&ammo>0; updateAmmoHud();
+}
+
 function reloadWeapon() {
-  if (reloading || ammo === 1 || reserve <= 0) return;
+  if (weaponMode==='knife' || reloading || ammo === (weaponMode==='bow'?1:12) || reserve <= 0) return;
   reloading = true; updateAmmoHud();
   setTimeout(() => {
-    const take = Math.min(1 - ammo, reserve); ammo += take; reserve -= take;
+    const capacity=weaponMode==='bow'?1:12;
+    const take = Math.min(capacity - ammo, reserve); ammo += take; reserve -= take;
     reloading = false; updateAmmoHud();
     heldArrow.visible = true;
-  }, 650);
+  }, weaponMode==='bow'?650:900);
 }
 
 function shoot() {
   const now = performance.now();
-  if (reloading || now - lastShot < 550) return;
-  if (ammo <= 0) { reloadWeapon(); return; }
-  lastShot = now; ammo--; updateAmmoHud();
-  recoil = 1; heldArrow.visible = false;
-  const flying = heldArrow.clone(true);
-  const wp = new THREE.Vector3(); const wq = new THREE.Quaternion();
-  heldArrow.getWorldPosition(wp); camera.getWorldQuaternion(wq);
-  flying.position.copy(wp); flying.quaternion.copy(wq); scene.add(flying);
-  const direction = new THREE.Vector3(0,0,-1).applyQuaternion(wq);
-  flyingArrows.push({mesh:flying, velocity:direction.multiplyScalar(30), born:now});
+  const delay=weaponMode==='bow'?550:weaponMode==='gun'?150:420;
+  if (reloading || now - lastShot < delay) return;
+  if (weaponMode!=='knife' && ammo <= 0) { reloadWeapon(); return; }
+  lastShot = now; recoil = 1;
+  if(weaponMode!=='knife'){ammo--;updateAmmoHud();}
+  if(weaponMode==='bow'){
+    heldArrow.visible = false;
+    const flying = heldArrow.clone(true);
+    const wp = new THREE.Vector3(); const wq = new THREE.Quaternion();
+    heldArrow.getWorldPosition(wp); camera.getWorldQuaternion(wq);
+    flying.position.copy(wp); flying.quaternion.copy(wq); scene.add(flying);
+    const direction = new THREE.Vector3(0,0,-1).applyQuaternion(wq);
+    const trail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([wp.clone(),wp.clone()]),new THREE.LineBasicMaterial({color:0xffd37a,transparent:true,opacity:.9}));scene.add(trail);
+    flyingArrows.push({mesh:flying,velocity:direction.multiplyScalar(30),born:now,trail,points:[wp.clone()]});
+  }
   ray.setFromCamera(center, camera);
   const hit = ray.intersectObjects(targetMeshes.filter(m => m.visible && m.userData.targetRoot?.visible), false)[0];
-  if (hit) {
+  if (hit && (weaponMode!=='knife' || hit.distance<3.2)) {
     const root = hit.object.userData.targetRoot;
     score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
     const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
     root.visible = false;
     setTimeout(() => { if (root.parent) root.visible = true; }, 2200);
   }
-  if (ammo === 0) setTimeout(reloadWeapon, 250);
+  if (weaponMode!=='knife' && ammo === 0) setTimeout(reloadWeapon, 250);
 }
 
 function updateHover() {
@@ -673,10 +710,15 @@ function animate() {
   weapon3d.position.set(.43 + bob * .35, -.18 + Math.abs(bob), -.78 + recoil * .10);
   weapon3d.rotation.x = recoil * .08;
   heldArrow.position.z = .18 + recoil * .24;
+  pistol3d.position.z=-.62+recoil*.12; pistol3d.rotation.x=recoil*.14;
+  knife3d.rotation.x=recoil*.85; knife3d.position.z=-.58-recoil*.2;
   for (let i = flyingArrows.length - 1; i >= 0; i--) {
     const a = flyingArrows[i]; a.mesh.position.addScaledVector(a.velocity, dt);
     a.velocity.y -= 2.2 * dt;
-    if (performance.now() - a.born > 1800) { scene.remove(a.mesh); flyingArrows.splice(i,1); }
+    a.points.push(a.mesh.position.clone()); if(a.points.length>12)a.points.shift();
+    a.trail.geometry.dispose(); a.trail.geometry=new THREE.BufferGeometry().setFromPoints(a.points);
+    a.trail.material.opacity=Math.max(.15,1-(performance.now()-a.born)/1800);
+    if (performance.now() - a.born > 1800) { scene.remove(a.mesh); scene.remove(a.trail); a.trail.geometry.dispose(); flyingArrows.splice(i,1); }
   }
   renderer.render(scene, camera);
 }
