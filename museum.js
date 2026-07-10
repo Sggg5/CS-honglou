@@ -360,6 +360,7 @@ let botGroups = [];
 let playerHealth = 100;
 let missionStartedAt = 0;
 let missionComplete = false;
+let killStreak = 0, lastKillAt = 0;
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -685,7 +686,12 @@ function meleeStrike() {
 function hitTarget(hit) {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
-  score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
+  const headshot=!!hit.object.userData.headshot;
+  score += headshot ? 2 : 1; updateAmmoHud();
+  const now=performance.now(); killStreak=now-lastKillAt<3200?killStreak+1:1; lastKillAt=now;
+  const p=hit.point.clone().project(camera); const text=document.getElementById('combat-text');
+  text.textContent=headshot?'爆头 +2':'+1'; text.style.left=`${(p.x*.5+.5)*innerWidth}px`; text.style.top=`${(-p.y*.5+.5)*innerHeight}px`; text.classList.remove('show');void text.offsetWidth;text.classList.add('show');
+  const feed=document.getElementById('killfeed'); const entry=document.createElement('div'); entry.className=`kill-entry${headshot?' head':''}`; entry.textContent=headshot?'爆头击杀  +2':'目标击杀  +1'; if(killStreak>1)entry.textContent+=`  · ${killStreak} 连杀`; feed.prepend(entry); while(feed.children.length>4)feed.lastElementChild.remove(); setTimeout(()=>entry.remove(),4200);
   sound('hit');
   const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
   root.visible = false;
