@@ -132,6 +132,7 @@ const knifeTip=new THREE.Mesh(new THREE.ConeGeometry(.065,.22,4),knifeBlade.mate
 const knifeGrip=new THREE.Mesh(new THREE.BoxGeometry(.11,.12,.34),gunDark); knifeGrip.position.z=.18; knife3d.add(knifeGrip);
 let weaponMode='bow';
 let audioCtx=null, soundEnabled=true;
+let bowCharging=false, chargeStarted=0;
 const weaponState={bow:{ammo:1,reserve:30},gun:{ammo:12,reserve:48}};
 pistol3d.visible=false; knife3d.visible=false;
 function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}
@@ -633,8 +634,10 @@ window.addEventListener('keyup', e => { keys[e.code] = false; });
 canvas.addEventListener('mousedown', () => {
   if (!locked) return;
   wakeChrome();
-  shoot();
+  if(weaponMode==='bow'){bowCharging=true;chargeStarted=performance.now();document.getElementById('charge').style.display='block';}
+  else shoot();
 });
+window.addEventListener('mouseup',()=>{if(bowCharging){bowCharging=false;document.getElementById('charge').style.display='none';shoot();}});
 
 function updateAmmoHud() {
   const names={bow:'弓箭 [1]',gun:'手枪 [2]',knife:'小刀 [3]'};
@@ -666,6 +669,7 @@ function reloadWeapon() {
 
 function shoot() {
   const now = performance.now();
+  const chargePower=weaponMode==='bow'?Math.min(1,(now-chargeStarted)/900):1;
   const delay=weaponMode==='bow'?550:weaponMode==='gun'?150:420;
   if (reloading || now - lastShot < delay) return;
   if (weaponMode!=='knife' && ammo <= 0) { reloadWeapon(); return; }
@@ -680,7 +684,7 @@ function shoot() {
     flying.position.copy(wp); flying.quaternion.copy(wq); scene.add(flying);
     const direction = new THREE.Vector3(0,0,-1).applyQuaternion(wq);
     const trail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([wp.clone(),wp.clone()]),new THREE.LineBasicMaterial({color:0xffd37a,transparent:true,opacity:.9}));scene.add(trail);
-    flyingArrows.push({mesh:flying,velocity:direction.multiplyScalar(30),born:now,trail,points:[wp.clone()]});
+    flyingArrows.push({mesh:flying,velocity:direction.multiplyScalar(18+26*chargePower),born:now,trail,points:[wp.clone()],power:chargePower});
   } else if(weaponMode==='gun') {
     const origin=new THREE.Vector3(); const q=new THREE.Quaternion();
     pistol3d.getWorldPosition(origin); camera.getWorldQuaternion(q);
@@ -703,14 +707,14 @@ function meleeStrike() {
   if(hit&&hit.distance<3.2) hitTarget(hit);
 }
 
-function hitTarget(hit) {
+function hitTarget(hit,power=1) {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
   const headshot=!!hit.object.userData.headshot;
-  score += headshot ? 2 : 1; updateAmmoHud();
+  score += headshot ? 2 : (power>.8 ? 2 : 1); updateAmmoHud();
   const now=performance.now(); killStreak=now-lastKillAt<3200?killStreak+1:1; lastKillAt=now;
   const p=hit.point.clone().project(camera); const text=document.getElementById('combat-text');
-  text.textContent=headshot?'爆头 +2':'+1'; text.style.left=`${(p.x*.5+.5)*innerWidth}px`; text.style.top=`${(-p.y*.5+.5)*innerHeight}px`; text.classList.remove('show');void text.offsetWidth;text.classList.add('show');
+  text.textContent=headshot?'爆头 +2':(power>.8?'+2':'+1'); text.style.left=`${(p.x*.5+.5)*innerWidth}px`; text.style.top=`${(-p.y*.5+.5)*innerHeight}px`; text.classList.remove('show');void text.offsetWidth;text.classList.add('show');
   const feed=document.getElementById('killfeed'); const entry=document.createElement('div'); entry.className=`kill-entry${headshot?' head':''}`; entry.textContent=headshot?'爆头击杀  +2':'目标击杀  +1'; if(killStreak>1)entry.textContent+=`  · ${killStreak} 连杀`; feed.prepend(entry); while(feed.children.length>4)feed.lastElementChild.remove(); setTimeout(()=>entry.remove(),4200);
   sound('hit');
   const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
@@ -835,6 +839,7 @@ function animate() {
   recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
   const bob = moving && started ? Math.sin(performance.now() * .012) * .012 : 0;
+  if(bowCharging) document.querySelector('#charge span').style.width=`${Math.min(100,(performance.now()-chargeStarted)/9)}%`;
   weapon3d.position.set(.43 + bob * .35, -.18 + Math.abs(bob), -.78 + recoil * .10);
   weapon3d.rotation.x = recoil * .08;
   heldArrow.position.z = .18 + recoil * .24;
@@ -849,7 +854,7 @@ function animate() {
     ray.set(previous, direction);
     const arrowHit = ray.intersectObjects(targetMeshes.filter(m => m.visible && m.userData.targetRoot?.visible), false)[0];
     if (arrowHit && arrowHit.distance <= stepLength + .12) {
-      a.mesh.position.copy(arrowHit.point); hitTarget(arrowHit);
+      a.mesh.position.copy(arrowHit.point); hitTarget(arrowHit,a.power);
       scene.remove(a.mesh); scene.remove(a.trail); a.trail.geometry.dispose(); flyingArrows.splice(i,1);
       continue;
     }

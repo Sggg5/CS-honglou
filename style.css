@@ -60,6 +60,8 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 #combat-text { position:fixed; z-index:24; pointer-events:none; color:#ffe29a; font:700 20px system-ui,sans-serif; text-shadow:0 2px 4px #000; transform:translate(-50%,-50%); opacity:0; }
 #combat-text.show { animation:floatText .7s ease-out; } @keyframes floatText { 0%{opacity:1;transform:translate(-50%,-20%)} 100%{opacity:0;transform:translate(-50%,-100%)} }
 #killfeed { position:fixed; left:22px; top:92px; z-index:23; display:flex; flex-direction:column; gap:5px; pointer-events:none; }
+#charge { position:fixed; left:50%; bottom:126px; width:180px; height:5px; transform:translateX(-50%); background:rgba(20,12,8,.65); border:1px solid rgba(255,216,130,.45); display:none; }
+#charge span { display:block; width:0; height:100%; background:linear-gradient(90deg,#d29a3d,#ffed9c); transition:width .04s linear; }
 .kill-entry { padding:6px 10px; color:#ffe8c1; background:rgba(20,12,8,.65); border-left:2px solid #d4a24e; font:13px system-ui,sans-serif; animation:feedIn .2s ease-out; }
 .kill-entry.head { border-left-color:#f26f54; color:#ffd0ae; } @keyframes feedIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:none} }
 
