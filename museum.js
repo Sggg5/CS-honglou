@@ -357,6 +357,7 @@ function makeCenterpiece(ex) {
 let doorMeshes = [];
 let targetMeshes = [];
 let botGroups = [];
+let pickupMeshes = [];
 let playerHealth = 100;
 let missionStartedAt = 0;
 let missionComplete = false;
@@ -444,6 +445,24 @@ function addCombatTargets() {
   });
 }
 
+function addPickups() {
+  pickupMeshes=[];
+  const spots=[[-10,0,-2],[10,0,-2],[0,0,7]];
+  spots.forEach((p,i)=>{
+    const group=new THREE.Group();
+    const isHealth=i===0;
+    const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:0xc48b2d,roughness:.5,metalness:.2}));
+    box.position.y=.35; group.add(box);
+    if(isHealth){const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.52,.04),new THREE.MeshBasicMaterial({color:0xffe8d0}));cross.position.set(0,.36,.36);group.add(cross);const cross2=cross.clone();cross2.rotation.z=Math.PI/2;group.add(cross2);}
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
+    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':'ammo';group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
+  });
+}
+
+function updatePickups(dt){
+  pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}}});
+}
+
 function buildRoom(ex) {
   disposeGroup(roomGroup);
   scene.remove(roomGroup);
@@ -505,6 +524,7 @@ function buildRoom(ex) {
   currentCenterpiece = cp;
   if (cp) roomGroup.add(cp);
   addCombatTargets();
+  addPickups();
 }
 
 function addDoor(id, color, pos, rotY) {
@@ -810,6 +830,7 @@ function animate() {
   if (currentCenterpiece) currentCenterpiece.rotation.y += dt * 0.4;
   if(started&&!detailOpen) updateBots(dt);
   if(started&&!detailOpen) updateMission();
+  if(started&&!detailOpen) updatePickups(dt);
   // 枪械后坐力回弹与轻微呼吸摆动
   recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
