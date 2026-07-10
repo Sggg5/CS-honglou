@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>红楼梦 · 万物博物馆</title>
+<link rel="stylesheet" href="./style.css" />
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- 准星 -->
+  <div id="crosshair"></div>
+
+  <!-- 顶部 HUD -->
+  <div id="hud-top">
+    <div id="cur-name">—</div>
+    <div id="cur-cat">—</div>
+  </div>
+
+  <!-- 底部提示 -->
+  <div id="prompt"></div>
+
+  <!-- FPS HUD -->
+  <div id="combat-hud">
+    <span id="score">命中 0</span>
+    <span id="ammo">12 / 48</span>
+  </div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="weapon" aria-hidden="true">
+    <div class="weapon-sight"></div><div class="weapon-slide"></div><div class="weapon-grip"></div>
+  </div>
+
+  <!-- 工具栏 -->
+  <div id="toolbar">
+    <button id="btn-map" title="关系图谱 (M)">图谱</button>
+    <button id="btn-search" title="搜索 (/)">搜索</button>
+  </div>
+
+  <!-- 操作提示（暂停时） -->
+  <div id="pause">
+    <div class="pause-card">
+      <p>已暂停 · 点击画面继续漫游</p>
+    </div>
+  </div>
+
+  <!-- 起始大厅 -->
+  <div id="intro">
+    <div class="intro-card">
+      <div class="seal">梦</div>
+      <h1>红楼梦 · 万物博物馆</h1>
+      <p class="sub">一座由《红楼梦》知识库生成的 3D 博物馆</p>
+      <p class="desc">每个词条都是一间展厅，墙上是说明牌与意象，四周的门通往互链的词条。
+        顺着人物、诗词、章回、地点之间的因缘，推门而入，永远逛不到头——正如太虚幻境中那本写满命运的薄命司册。</p>
+      <div class="stats" id="intro-stats"></div>
+      <div class="controls" aria-label="漫游操作说明">
+        <div><kbd>W A S D</kbd><span>自由行走</span></div>
+        <div><kbd>鼠标</kbd><span>环顾展厅</span></div>
+        <div><kbd>点击 / E</kbd><span>推门探索</span></div>
+        <div><kbd>F</kbd><span>阅读展品</span></div>
+        <div><kbd>左键</kbd><span>放箭</span></div>
+        <div><kbd>R</kbd><span>搭箭</span></div>
+      </div>
+      <p class="dim">现已新增「研究 · 红学考据」与「事件 · 关键情节」两大展厅；从宝玉、黛玉、宝钗、凤姐、贾母等展厅可直接推门进入。主题、线索、器物、民俗等专题已并入各展品的 F 详细解读。</p>
+      <button id="enter-btn">推门而入</button>
+      <p class="hint">推门之后，自由漫步，推门穿行于各展厅之间</p>
+    </div>
+  </div>
+
+  <!-- 关系图谱 -->
+  <div id="map-overlay">
+    <div class="map-panel">
+      <div class="map-head"><span>关系图谱 · 点击节点直达展厅</span><button id="map-close">关闭</button></div>
+      <svg id="map-svg" viewBox="0 0 800 600"></svg>
+      <div class="map-legend" id="map-legend"></div>
+    </div>
+  </div>
+
+  <!-- 搜索 -->
+  <div id="search-overlay">
+    <div class="search-panel">
+      <div class="search-head"><input id="search-input" placeholder="搜索人物 / 诗词 / 章回 / 地点…" autofocus /><button id="search-close">关闭</button></div>
+      <div id="search-list"></div>
+    </div>
+  </div>
+
+  <!-- 详情（来自站点知识库 hlm.yanghuide.kdns.fr） -->
+  <div id="detail-overlay">
+    <div class="detail-panel">
+      <div class="detail-head">
+        <span id="detail-cat" class="detail-cat"></span>
+        <h2 id="detail-title"></h2>
+        <button id="detail-close">关闭 (Esc)</button>
+      </div>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
+  <!-- 过渡黑幕 -->
+  <div id="fade"></div>
+
+  <script type="module" src="./museum.js"></script>
+</body>
+</html>
