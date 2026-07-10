@@ -438,6 +438,8 @@ function addCombatTargets() {
     stand.position.y = .08;
     group.add(body, head, chest, armL, armR, legL, legR, stand); group.position.set(p[0], 0, p[2]);
     group.userData.alive = true;
+    group.userData.health = i%3===0 ? 2 : 1;
+    group.userData.armored = i%3===0;
     group.userData.home = new THREE.Vector3(p[0],0,p[2]);
     group.userData.phase = Math.random()*Math.PI*2;
     group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
@@ -711,7 +713,12 @@ function hitTarget(hit,power=1) {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
   const headshot=!!hit.object.userData.headshot;
-  score += headshot ? 2 : (power>.8 ? 2 : 1); updateAmmoHud();
+  root.userData.health -= headshot ? 2 : 1;
+  const killed=root.userData.health<=0;
+  score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();
+  if(!killed){
+    const text=document.getElementById('combat-text');text.textContent='命中';text.style.left='50%';text.style.top='45%';text.classList.remove('show');void text.offsetWidth;text.classList.add('show');sound('hit');return;
+  }
   const now=performance.now(); killStreak=now-lastKillAt<3200?killStreak+1:1; lastKillAt=now;
   const p=hit.point.clone().project(camera); const text=document.getElementById('combat-text');
   text.textContent=headshot?'爆头 +2':(power>.8?'+2':'+1'); text.style.left=`${(p.x*.5+.5)*innerWidth}px`; text.style.top=`${(-p.y*.5+.5)*innerHeight}px`; text.classList.remove('show');void text.offsetWidth;text.classList.add('show');
