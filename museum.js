@@ -422,8 +422,9 @@ function addCombatTargets() {
   const spots = [[-7,0,-6],[7,0,-7],[-8,0,5],[8,0,6],[0,0,-9]];
   spots.forEach((p, i) => {
     const group = new THREE.Group();
-    const mat = new THREE.MeshStandardMaterial({ color: i % 2 ? 0x8fc7b0 : 0xe6a1a8, roughness: .68 });
-    const trim = new THREE.MeshStandardMaterial({ color: 0xd1aa62, metalness:.2, roughness:.55 });
+    const isFrost=i===0;
+    const mat = new THREE.MeshStandardMaterial({ color: isFrost?0x9fc9eb:(i%2?0x8fc7b0:0xe6a1a8), roughness: .68 });
+    const trim = new THREE.MeshStandardMaterial({ color: isFrost?0xd9f3ff:0xd1aa62, metalness:.2, roughness:.55 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(.92,1.15,.34), mat);
     body.position.y = 1.55; body.castShadow = true;
     const head = new THREE.Mesh(new THREE.SphereGeometry(.34, 20, 16), new THREE.MeshStandardMaterial({color:0xb89272,roughness:.8}));
@@ -435,6 +436,10 @@ function addCombatTargets() {
     const cheekL=new THREE.Mesh(new THREE.SphereGeometry(.055,10,8),cheekMat); cheekL.position.set(-.2,2.42,.29);
     const cheekR=cheekL.clone(); cheekR.position.x=.2;
     const smile=new THREE.Mesh(new THREE.TorusGeometry(.09,.018,6,14,Math.PI),new THREE.MeshBasicMaterial({color:0x7e3d46})); smile.position.set(0,2.38,.3); smile.rotation.z=Math.PI;
+    const frostHair=new THREE.Mesh(new THREE.SphereGeometry(.37,16,12),new THREE.MeshStandardMaterial({color:0x4e82b5,roughness:.65})); frostHair.position.y=2.68; frostHair.scale.set(1,.62,1);
+    const ponyL=new THREE.Mesh(new THREE.SphereGeometry(.16,12,10),frostHair.material); ponyL.position.set(-.34,2.37,-.02); ponyL.scale.set(.8,1.8,.8);
+    const ponyR=ponyL.clone(); ponyR.position.x=.34;
+    const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(.12),new THREE.MeshStandardMaterial({color:0xa9eaff,emissive:0x24536b,emissiveIntensity:.5,metalness:.2,roughness:.2})); crystal.position.set(0,1.96,.3);
     const chest = new THREE.Mesh(new THREE.TorusGeometry(.22,.035,8,22), trim); chest.position.set(0,1.62,.19);
     const limbGeo = new THREE.CapsuleGeometry(.13,.72,4,8);
     const armL = new THREE.Mesh(limbGeo, mat); armL.position.set(-.58,1.55,0); armL.rotation.z=-.12;
@@ -443,7 +448,9 @@ function addCombatTargets() {
     const legR = new THREE.Mesh(new THREE.CapsuleGeometry(.15,.78,4,8), gunDark); legR.position.set(.23,.65,0);
     const stand = new THREE.Mesh(new THREE.CylinderGeometry(.65,.9,.16,16), new THREE.MeshStandardMaterial({color:0x17120e}));
     stand.position.y = .08;
-    group.add(body, head, eyeL, eyeR, cheekL, cheekR, smile, chest, armL, armR, legL, legR, stand); group.position.set(p[0], 0, p[2]);
+    group.add(body, head, eyeL, eyeR, cheekL, cheekR, smile, chest, armL, armR, legL, legR, stand);
+    if(isFrost) group.add(frostHair,ponyL,ponyR,crystal);
+    group.position.set(p[0], 0, p[2]);
     group.userData.alive = true;
     group.userData.health = i%3===0 ? 2 : 1;
     group.userData.armored = i%3===0;
