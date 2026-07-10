@@ -131,8 +131,13 @@ const knifeBlade=new THREE.Mesh(new THREE.BoxGeometry(.055,.08,.72),new THREE.Me
 const knifeTip=new THREE.Mesh(new THREE.ConeGeometry(.065,.22,4),knifeBlade.material); knifeTip.rotation.x=-Math.PI/2; knifeTip.position.z=-.8; knife3d.add(knifeTip);
 const knifeGrip=new THREE.Mesh(new THREE.BoxGeometry(.11,.12,.34),gunDark); knifeGrip.position.z=.18; knife3d.add(knifeGrip);
 let weaponMode='bow';
+let audioCtx=null, soundEnabled=true;
 const weaponState={bow:{ammo:1,reserve:30},gun:{ammo:12,reserve:48}};
 pistol3d.visible=false; knife3d.visible=false;
+function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}
+function tone(freq,duration,type='sine',volume=.04,slide=0){if(!soundEnabled)return;ensureAudio();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type;o.frequency.setValueAtTime(freq,audioCtx.currentTime);o.frequency.linearRampToValueAtTime(freq+slide,audioCtx.currentTime+duration);g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);o.connect(g).connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+duration);}
+function sound(name){if(name==='bow'){tone(210,.12,'triangle',.08,-90);tone(520,.08,'sine',.035,-180);}if(name==='gun'){tone(92,.08,'square',.1,-45);tone(780,.045,'sawtooth',.035,-500);}if(name==='knife')tone(620,.16,'triangle',.045,-500);if(name==='hit')tone(180,.08,'square',.07,120);if(name==='damage')tone(75,.2,'sawtooth',.08,-25);}
+document.getElementById('btn-sound').addEventListener('click',()=>{soundEnabled=!soundEnabled;document.getElementById('btn-sound').textContent=soundEnabled?'音效开':'音效关';if(soundEnabled)ensureAudio();});
 
 let roomGroup = new THREE.Group();
 scene.add(roomGroup);
@@ -644,6 +649,7 @@ function shoot() {
   if (reloading || now - lastShot < delay) return;
   if (weaponMode!=='knife' && ammo <= 0) { reloadWeapon(); return; }
   lastShot = now; recoil = 1;
+  sound(weaponMode);
   if(weaponMode!=='knife'){ammo--;updateAmmoHud();}
   if(weaponMode==='bow'){
     heldArrow.visible = false;
@@ -680,6 +686,7 @@ function hitTarget(hit) {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
   score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
+  sound('hit');
   const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
   root.visible = false;
 }
@@ -687,6 +694,7 @@ function hitTarget(hit) {
 function damagePlayer(amount) {
   if (!started || playerHealth<=0) return;
   playerHealth=Math.max(0,playerHealth-amount);
+  sound('damage');
   const hp=document.getElementById('health'); hp.textContent=`生命 ${playerHealth}`; hp.style.color=playerHealth>35?'#a9e3a1':'#ff7770';
   const flash=document.getElementById('damage-flash');flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');
   if(playerHealth===0){
@@ -988,6 +996,7 @@ document.getElementById('search-close').addEventListener('click', closeSearch);
 
 // ===================== 启动 =====================
 function start() {
+  ensureAudio();
   document.getElementById('intro').style.display = 'none';
   started = true;
   document.getElementById('combat-hud').style.display = 'flex';
