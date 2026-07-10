@@ -603,7 +603,7 @@ document.getElementById('pause').addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === canvas;
   if (locked) { skipFirstMove = true; wakeChrome(); } // 进锁后第一帧 movement 常异常大，下一帧起再接收
-  else hideChrome();
+  else { hideChrome(); clearMovementKeys(); dragging=false; }
   if (!detailOpen) document.getElementById('pause').style.display = locked ? 'none' : 'flex';
 });
 document.addEventListener('mousemove', e => {
@@ -645,6 +645,9 @@ window.addEventListener('keydown', e => {
   if (e.code === '/' ) { e.preventDefault(); openSearch(); }
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
+function clearMovementKeys(){ Object.keys(keys).forEach(k=>{keys[k]=false;}); }
+window.addEventListener('blur', clearMovementKeys);
+document.addEventListener('visibilitychange', ()=>{if(document.hidden)clearMovementKeys();});
 
 // 点击进门（准星对准门）
 canvas.addEventListener('mousedown', () => {
