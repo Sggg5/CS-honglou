@@ -635,14 +635,17 @@ function shoot() {
   }
   ray.setFromCamera(center, camera);
   const hit = ray.intersectObjects(targetMeshes.filter(m => m.visible && m.userData.targetRoot?.visible), false)[0];
-  if (hit && (weaponMode!=='knife' || hit.distance<3.2)) {
-    const root = hit.object.userData.targetRoot;
-    score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
-    const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
-    root.visible = false;
-    setTimeout(() => { if (root.parent) root.visible = true; }, 2200);
-  }
+  if (weaponMode!=='bow' && hit && (weaponMode!=='knife' || hit.distance<3.2)) hitTarget(hit);
   if (weaponMode!=='knife' && ammo === 0) setTimeout(reloadWeapon, 250);
+}
+
+function hitTarget(hit) {
+  const root = hit.object.userData.targetRoot;
+  if (!root || !root.visible) return;
+  score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
+  const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
+  root.visible = false;
+  setTimeout(() => { if (root.parent) root.visible = true; }, 2200);
 }
 
 function updateHover() {
@@ -713,7 +716,19 @@ function animate() {
   pistol3d.position.z=-.62+recoil*.12; pistol3d.rotation.x=recoil*.14;
   knife3d.rotation.x=recoil*.85; knife3d.position.z=-.58-recoil*.2;
   for (let i = flyingArrows.length - 1; i >= 0; i--) {
-    const a = flyingArrows[i]; a.mesh.position.addScaledVector(a.velocity, dt);
+    const a = flyingArrows[i];
+    const previous = a.mesh.position.clone();
+    const step = a.velocity.clone().multiplyScalar(dt);
+    const stepLength = step.length();
+    const direction = step.clone().normalize();
+    ray.set(previous, direction);
+    const arrowHit = ray.intersectObjects(targetMeshes.filter(m => m.visible && m.userData.targetRoot?.visible), false)[0];
+    if (arrowHit && arrowHit.distance <= stepLength + .12) {
+      a.mesh.position.copy(arrowHit.point); hitTarget(arrowHit);
+      scene.remove(a.mesh); scene.remove(a.trail); a.trail.geometry.dispose(); flyingArrows.splice(i,1);
+      continue;
+    }
+    a.mesh.position.add(step);
     a.velocity.y -= 2.2 * dt;
     a.points.push(a.mesh.position.clone()); if(a.points.length>12)a.points.shift();
     a.trail.geometry.dispose(); a.trail.geometry=new THREE.BufferGeometry().setFromPoints(a.points);
