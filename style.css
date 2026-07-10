@@ -77,6 +77,7 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 }
 .intro-card {
   position: relative; width: min(640px, 92vw); padding: 46px 50px 38px;
+  max-height: 92vh; overflow-y: auto;
   background: rgba(244,236,216,0.96); color: #2a1d12; border-radius: 4px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.6); text-align: center;
   border: 1px solid #c9b48a;
@@ -106,6 +107,7 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
   background: #fffaf0; color: #442d1c; font: 12px/1.2 system-ui, sans-serif; box-shadow: 0 2px 4px rgba(60,35,15,.08);
 }
 #enter-btn {
+  position: sticky; bottom: 0; z-index: 3;
   margin-top: 18px; padding: 14px 46px; font-family: inherit; font-size: 20px; letter-spacing: 4px;
   cursor: pointer; background: #7a2e22; color: #f6ecd6; border: none; border-radius: 4px;
   box-shadow: 0 6px 18px rgba(122,46,34,0.4); transition: 0.15s;
