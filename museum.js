@@ -668,7 +668,6 @@ function hitTarget(hit) {
   score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
   const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
   root.visible = false;
-  setTimeout(() => { if (root.parent) { root.position.copy(root.userData.home); root.visible = true; root.userData.nextAttack=performance.now()+1200; } }, 2200);
 }
 
 function damagePlayer(amount) {
