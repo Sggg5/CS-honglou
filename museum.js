@@ -355,7 +355,16 @@ let botGroups = [];
 let playerHealth = 100;
 let missionStartedAt = 0;
 let missionComplete = false;
-const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200 };
+const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
+const difficultyPresets = {
+  easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
+  normal: {speed:1.15,damageMin:7,damageMax:11,attackMin:1300,attackMax:2200,name:'普通'},
+  hard: {speed:1.65,damageMin:11,damageMax:17,attackMin:750,attackMax:1350,name:'困难'}
+};
+document.querySelectorAll('[data-difficulty]').forEach(btn=>btn.addEventListener('click',()=>{
+  Object.assign(difficulty,difficultyPresets[btn.dataset.difficulty]);
+  document.querySelectorAll('[data-difficulty]').forEach(b=>b.classList.toggle('selected',b===btn));
+}));
 let ammo = 1, reserve = 30, score = 0, reloading = false, lastShot = 0;
 let current = null;
 let currentCenterpiece = null;

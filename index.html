@@ -62,6 +62,12 @@
       <p class="desc">每个词条都是一间展厅，墙上是说明牌与意象，四周的门通往互链的词条。
         顺着人物、诗词、章回、地点之间的因缘，推门而入，永远逛不到头——正如太虚幻境中那本写满命运的薄命司册。</p>
       <div class="stats" id="intro-stats"></div>
+      <div class="difficulty" aria-label="选择难度">
+        <span>对战难度</span>
+        <button data-difficulty="easy">简单</button>
+        <button data-difficulty="normal" class="selected">普通</button>
+        <button data-difficulty="hard">困难</button>
+      </div>
       <div class="controls" aria-label="漫游操作说明">
         <div><kbd>W A S D</kbd><span>自由行走</span></div>
         <div><kbd>鼠标</kbd><span>环顾展厅</span></div>
@@ -109,6 +115,6 @@
   <!-- 过渡黑幕 -->
   <div id="fade"></div>
 
-  <script type="module" src="./museum.js?v=20260710-mission-a7eaa13"></script>
+  <script type="module" src="./museum.js?v=20260710-difficulty-1"></script>
 </body>
 </html>

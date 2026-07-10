@@ -103,6 +103,9 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 .stats span { padding: 6px 14px; background: #efe3c8; border: 1px solid #cbb98e; border-radius: 20px; font-size: 14px; }
 .stats b { color: #a52a1f; }
 .stats .total { background: #2a1d12; color: #f0e6d2; border-color: #2a1d12; }
+.difficulty { display:flex; align-items:center; justify-content:center; gap:8px; margin:14px 0 4px; color:#715b3e; font-size:13px; }
+.difficulty button { padding:6px 14px; border:1px solid #c5ad7f; border-radius:4px; background:#fffaf0; color:#5a3b25; font:13px inherit; cursor:pointer; }
+.difficulty button:hover,.difficulty button.selected { background:#7a2e22; color:#fff5df; border-color:#7a2e22; }
 .controls {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 18px 0 4px;
   padding: 12px; border-top: 1px solid #d6c6a5; border-bottom: 1px solid #d6c6a5;
