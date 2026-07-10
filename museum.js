@@ -116,6 +116,7 @@ heldArrow.position.set(-.02,0,.18); weapon3d.add(heldArrow);
 let recoil = 0;
 const flyingArrows = [];
 const flyingBullets = [];
+const enemyTracers = [];
 
 // 备用武器：手枪与小刀
 const pistol3d = new THREE.Group(); pistol3d.position.set(.34,-.3,-.62); pistol3d.scale.setScalar(.78); camera.add(pistol3d);
@@ -350,6 +351,8 @@ function makeCenterpiece(ex) {
 // ===================== 展厅构建 =====================
 let doorMeshes = [];
 let targetMeshes = [];
+let botGroups = [];
+let playerHealth = 100;
 let ammo = 1, reserve = 30, score = 0, reloading = false, lastShot = 0;
 let current = null;
 let currentCenterpiece = null;
@@ -393,6 +396,7 @@ const FLOOR_TEX = floorTexture();
 
 function addCombatTargets() {
   targetMeshes = [];
+  botGroups = [];
   const spots = [[-7,0,-6],[7,0,-7],[-8,0,5],[8,0,6],[0,0,-9]];
   spots.forEach((p, i) => {
     const group = new THREE.Group();
@@ -412,8 +416,11 @@ function addCombatTargets() {
     stand.position.y = .08;
     group.add(body, head, chest, armL, armR, legL, legR, stand); group.position.set(p[0], 0, p[2]);
     group.userData.alive = true;
+    group.userData.home = new THREE.Vector3(p[0],0,p[2]);
+    group.userData.phase = Math.random()*Math.PI*2;
+    group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
-    roomGroup.add(group); targetMeshes.push(body,head,chest,armL,armR,legL,legR);
+    roomGroup.add(group); botGroups.push(group); targetMeshes.push(body,head,chest,armL,armR,legL,legR);
   });
 }
 
@@ -661,7 +668,47 @@ function hitTarget(hit) {
   score += hit.object.userData.headshot ? 2 : 1; updateAmmoHud();
   const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
   root.visible = false;
-  setTimeout(() => { if (root.parent) root.visible = true; }, 2200);
+  setTimeout(() => { if (root.parent) { root.position.copy(root.userData.home); root.visible = true; root.userData.nextAttack=performance.now()+1200; } }, 2200);
+}
+
+function damagePlayer(amount) {
+  if (!started || playerHealth<=0) return;
+  playerHealth=Math.max(0,playerHealth-amount);
+  const hp=document.getElementById('health'); hp.textContent=`生命 ${playerHealth}`; hp.style.color=playerHealth>35?'#a9e3a1':'#ff7770';
+  const flash=document.getElementById('damage-flash');flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');
+  if(playerHealth===0){
+    setPrompt('你倒下了，正在当前展厅重生……');
+    setTimeout(()=>{playerHealth=100;hp.textContent='生命 100';hp.style.color='#a9e3a1';camera.position.set(0,EYE,D/2-4);},1200);
+  }
+}
+
+function updateBots(dt) {
+  const now=performance.now();
+  botGroups.forEach((bot,i)=>{
+    if(!bot.visible)return;
+    const dx=camera.position.x-bot.position.x,dz=camera.position.z-bot.position.z;
+    const dist=Math.hypot(dx,dz)||1;
+    bot.rotation.y=Math.atan2(dx,dz);
+    bot.userData.phase+=dt*(1.5+i*.08);
+    if(dist>4.6){
+      const speed=1.15*dt;
+      bot.position.x+=dx/dist*speed+Math.cos(bot.userData.phase)*dt*.28;
+      bot.position.z+=dz/dist*speed+Math.sin(bot.userData.phase)*dt*.28;
+    } else {
+      bot.position.x+=Math.cos(bot.userData.phase)*dt*.75;
+      bot.position.z+=Math.sin(bot.userData.phase)*dt*.75;
+    }
+    bot.position.x=Math.max(-W/2+2,Math.min(W/2-2,bot.position.x));
+    bot.position.z=Math.max(-D/2+2,Math.min(D/2-2,bot.position.z));
+    bot.position.y=Math.abs(Math.sin(bot.userData.phase*2))*.025;
+    if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
+      bot.userData.nextAttack=now+1300+Math.random()*900;
+      const from=bot.position.clone();from.y=2.05;const to=camera.position.clone();
+      const tracer=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0xff4938,transparent:true,opacity:.85}));
+      scene.add(tracer);enemyTracers.push({mesh:tracer,born:now});
+      if(Math.random()<Math.max(.35,.82-dist/30)) damagePlayer(7+Math.floor(Math.random()*5));
+    }
+  });
 }
 
 function updateHover() {
@@ -722,6 +769,7 @@ function animate() {
     updateHover();
   }
   if (currentCenterpiece) currentCenterpiece.rotation.y += dt * 0.4;
+  if(started&&!detailOpen) updateBots(dt);
   // 枪械后坐力回弹与轻微呼吸摆动
   recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
@@ -764,6 +812,7 @@ function animate() {
     b.trail.material.opacity=Math.max(.15,1-(performance.now()-b.born)/650);
     if(performance.now()-b.born>650){scene.remove(b.mesh);scene.remove(b.trail);b.trail.geometry.dispose();flyingBullets.splice(i,1);}
   }
+  for(let i=enemyTracers.length-1;i>=0;i--){const t=enemyTracers[i],age=performance.now()-t.born;t.mesh.material.opacity=1-age/180;if(age>180){scene.remove(t.mesh);t.mesh.geometry.dispose();enemyTracers.splice(i,1);}}
   renderer.render(scene, camera);
 }
 animate();
