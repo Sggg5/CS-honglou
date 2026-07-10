@@ -52,6 +52,7 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 #hitmarker i:nth-child(3){left:2px;bottom:7px;transform:rotate(-45deg)} #hitmarker i:nth-child(4){right:2px;bottom:7px;transform:rotate(45deg)}
 #hitmarker.show { display:block; animation: hit .18s ease-out; } @keyframes hit { from{transform:scale(.5)} to{transform:scale(1)} }
 #health { color:#a9e3a1; }
+.mode-badge { color:#ff8c7c; border-color:rgba(255,92,72,.55) !important; }
 #damage-flash { position:fixed; inset:0; z-index:21; pointer-events:none; opacity:0; background:radial-gradient(circle,transparent 35%,rgba(160,0,0,.62)); }
 #damage-flash.show { animation:damage .32s ease-out; } @keyframes damage { from{opacity:1} to{opacity:0} }
 
