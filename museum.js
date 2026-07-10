@@ -115,6 +115,7 @@ const feather = new THREE.Mesh(new THREE.BoxGeometry(.09,.045,.16),new THREE.Mes
 heldArrow.position.set(-.02,0,.18); weapon3d.add(heldArrow);
 let recoil = 0;
 const flyingArrows = [];
+const flyingBullets = [];
 
 // 备用武器：手枪与小刀
 const pistol3d = new THREE.Group(); pistol3d.position.set(.34,-.3,-.62); pistol3d.scale.setScalar(.78); camera.add(pistol3d);
@@ -632,11 +633,26 @@ function shoot() {
     const direction = new THREE.Vector3(0,0,-1).applyQuaternion(wq);
     const trail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([wp.clone(),wp.clone()]),new THREE.LineBasicMaterial({color:0xffd37a,transparent:true,opacity:.9}));scene.add(trail);
     flyingArrows.push({mesh:flying,velocity:direction.multiplyScalar(30),born:now,trail,points:[wp.clone()]});
+  } else if(weaponMode==='gun') {
+    const origin=new THREE.Vector3(); const q=new THREE.Quaternion();
+    pistol3d.getWorldPosition(origin); camera.getWorldQuaternion(q);
+    const direction=new THREE.Vector3(0,0,-1).applyQuaternion(q);
+    const bullet=new THREE.Mesh(new THREE.SphereGeometry(.025,6,4),new THREE.MeshBasicMaterial({color:0xffe4a0}));
+    bullet.position.copy(origin); scene.add(bullet);
+    const trail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([origin.clone(),origin.clone()]),new THREE.LineBasicMaterial({color:0xffb347,transparent:true,opacity:.95}));scene.add(trail);
+    flyingBullets.push({mesh:bullet,velocity:direction.multiplyScalar(95),born:now,trail,points:[origin.clone()]});
+  } else {
+    // 刀刃挥到画面中央时才进行近战接触判定
+    setTimeout(meleeStrike, 145);
   }
-  ray.setFromCamera(center, camera);
-  const hit = ray.intersectObjects(targetMeshes.filter(m => m.visible && m.userData.targetRoot?.visible), false)[0];
-  if (weaponMode!=='bow' && hit && (weaponMode!=='knife' || hit.distance<3.2)) hitTarget(hit);
   if (weaponMode!=='knife' && ammo === 0) setTimeout(reloadWeapon, 250);
+}
+
+function meleeStrike() {
+  if (weaponMode !== 'knife') return;
+  ray.setFromCamera(center, camera);
+  const hit=ray.intersectObjects(targetMeshes.filter(m=>m.visible&&m.userData.targetRoot?.visible),false)[0];
+  if(hit&&hit.distance<3.2) hitTarget(hit);
 }
 
 function hitTarget(hit) {
@@ -707,7 +723,7 @@ function animate() {
   }
   if (currentCenterpiece) currentCenterpiece.rotation.y += dt * 0.4;
   // 枪械后坐力回弹与轻微呼吸摆动
-  recoil = Math.max(0, recoil - dt * 8);
+  recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
   const bob = moving && started ? Math.sin(performance.now() * .012) * .012 : 0;
   weapon3d.position.set(.43 + bob * .35, -.18 + Math.abs(bob), -.78 + recoil * .10);
@@ -734,6 +750,19 @@ function animate() {
     a.trail.geometry.dispose(); a.trail.geometry=new THREE.BufferGeometry().setFromPoints(a.points);
     a.trail.material.opacity=Math.max(.15,1-(performance.now()-a.born)/1800);
     if (performance.now() - a.born > 1800) { scene.remove(a.mesh); scene.remove(a.trail); a.trail.geometry.dispose(); flyingArrows.splice(i,1); }
+  }
+  for(let i=flyingBullets.length-1;i>=0;i--){
+    const b=flyingBullets[i], previous=b.mesh.position.clone(), step=b.velocity.clone().multiplyScalar(dt);
+    ray.set(previous,step.clone().normalize());
+    const hit=ray.intersectObjects(targetMeshes.filter(m=>m.visible&&m.userData.targetRoot?.visible),false)[0];
+    if(hit&&hit.distance<=step.length()+.08){
+      b.mesh.position.copy(hit.point); hitTarget(hit);
+      scene.remove(b.mesh);scene.remove(b.trail);b.trail.geometry.dispose();flyingBullets.splice(i,1);continue;
+    }
+    b.mesh.position.add(step); b.points.push(b.mesh.position.clone()); if(b.points.length>7)b.points.shift();
+    b.trail.geometry.dispose();b.trail.geometry=new THREE.BufferGeometry().setFromPoints(b.points);
+    b.trail.material.opacity=Math.max(.15,1-(performance.now()-b.born)/650);
+    if(performance.now()-b.born>650){scene.remove(b.mesh);scene.remove(b.trail);b.trail.geometry.dispose();flyingBullets.splice(i,1);}
   }
   renderer.render(scene, camera);
 }
