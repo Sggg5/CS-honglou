@@ -90,7 +90,7 @@ scene.add(camera);
 const weapon3d = new THREE.Group();
 weapon3d.position.set(0.43, -0.18, -0.78);
 weapon3d.rotation.set(0, -0.08, 0);
-weapon3d.scale.setScalar(0.68);
+weapon3d.scale.setScalar(0.52);
 camera.add(weapon3d);
 const gunDark = new THREE.MeshStandardMaterial({ color: 0x171310, metalness: .2, roughness: .6 });
 const bowWood = new THREE.MeshStandardMaterial({ color: 0x6f3218, roughness: .48 });
