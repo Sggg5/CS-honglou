@@ -363,6 +363,7 @@ let playerHealth = 100;
 let missionStartedAt = 0;
 let missionComplete = false;
 let killStreak = 0, lastKillAt = 0;
+let roundNumber=0, roundState='idle', roundCountdown=0;
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -460,6 +461,16 @@ function addCombatTargets() {
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
     roomGroup.add(group); botGroups.push(group); targetMeshes.push(body,head,chest,armL,armR,legL,legR);
   });
+}
+
+function startRound(){
+  roundNumber++; roundState='countdown'; roundCountdown=3; playerHealth=100; missionComplete=false;
+  document.getElementById('health').textContent='生命 100';
+  missionStartedAt=performance.now()+3000;
+}
+function restartRound(){
+  if(!started||!byId[current])return;
+  buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
 }
 
 function addPickups() {
@@ -636,6 +647,7 @@ window.addEventListener('keydown', e => {
   wakeChrome();
   if (e.code === 'KeyE' && hoverDoor) go(hoverDoor.userData.target);
   if (e.code === 'KeyR') reloadWeapon();
+  if (e.code === 'KeyN' && (roundState==='win'||roundState==='lose')) restartRound();
   if (e.code === 'Digit1') switchWeapon('bow');
   if (e.code === 'Digit2') switchWeapon('gun');
   if (e.code === 'Digit3') switchWeapon('knife');
@@ -687,6 +699,7 @@ function reloadWeapon() {
 }
 
 function shoot() {
+  if(roundState!=='live')return;
   const now = performance.now();
   const chargePower=weaponMode==='bow'?Math.min(1,(now-chargeStarted)/900):1;
   const delay=weaponMode==='bow'?550:weaponMode==='gun'?150:420;
@@ -746,18 +759,18 @@ function hitTarget(hit,power=1) {
 }
 
 function damagePlayer(amount) {
-  if (!started || playerHealth<=0) return;
+  if (!started || playerHealth<=0 || roundState!=='live') return;
   playerHealth=Math.max(0,playerHealth-amount);
   sound('damage');
   const hp=document.getElementById('health'); hp.textContent=`生命 ${playerHealth}`; hp.style.color=playerHealth>35?'#a9e3a1':'#ff7770';
   const flash=document.getElementById('damage-flash');flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');
   if(playerHealth===0){
-    setPrompt('你倒下了，正在当前展厅重生……');
-    setTimeout(()=>{playerHealth=100;hp.textContent='生命 100';hp.style.color='#a9e3a1';camera.position.set(0,EYE,D/2-4);},1200);
+    roundState='lose'; clearMovementKeys(); setPrompt(`第 ${roundNumber} 回合失败 · 按 N 重新开始`);
   }
 }
 
 function updateBots(dt) {
+  if(roundState!=='live')return;
   const now=performance.now();
   botGroups.forEach((bot,i)=>{
     if(!bot.visible)return;
@@ -790,11 +803,18 @@ function updateMission() {
   const alive=botGroups.filter(b=>b.visible).length;
   const total=botGroups.length;
   document.getElementById('mission').textContent=`清除人机 ${total-alive} / ${total}`;
-  const elapsed=Math.floor((performance.now()-missionStartedAt)/1000);
+  const now=performance.now();
+  if(roundState==='countdown'){
+    roundCountdown=Math.ceil((missionStartedAt-now)/1000);
+    if(roundCountdown<=0){roundState='live';missionStartedAt=now;}
+  }
+  const elapsed=Math.max(0,Math.floor((now-missionStartedAt)/1000));
   document.getElementById('mission-time').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
-  if(total>0&&alive===0&&!missionComplete){
+  const status=document.getElementById('round-status');
+  status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
+  if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
-    setPrompt('展厅已清除 · 推门进入下一间展厅');
+    roundState='win'; setPrompt(`第 ${roundNumber} 回合胜利 · 按 N 再来一回合`);
   }
 }
 
@@ -916,6 +936,7 @@ function go(id) {
   setTimeout(() => {
     current = id;
     buildRoom(byId[id]);
+    startRound();
     // 重置位置：面朝后墙说明牌
     camera.position.set(0, EYE, D / 2 - 4);
     yaw = 0; pitch = 0; camera.rotation.set(0, yaw, 0);
@@ -1059,6 +1080,7 @@ function start() {
   updateAmmoHud();
   current = 'baoyu';
   buildRoom(byId[current]);
+  startRound();
   camera.position.set(0, EYE, D / 2 - 4);
   yaw = 0; pitch = 0; camera.rotation.set(0, yaw, 0);
   canvas.requestPointerLock();

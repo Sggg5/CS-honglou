@@ -55,6 +55,7 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 #health { color:#b8daa7; }
 #mission { color:#e8cd92; }
 #mission-time { color:#c8c0ae; font-variant-numeric:tabular-nums; }
+#round-status { color:#dca58b; min-width:72px; text-align:center; }
 .mode-badge { color:#dca58b; border-color:rgba(210,150,120,.35) !important; font-size:11px; }
 #damage-flash { position:fixed; inset:0; z-index:21; pointer-events:none; opacity:0; background:radial-gradient(circle,transparent 35%,rgba(160,0,0,.62)); }
 #damage-flash.show { animation:damage .32s ease-out; } @keyframes damage { from{opacity:1} to{opacity:0} }
