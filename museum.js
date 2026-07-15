@@ -374,7 +374,9 @@ let money=800;
 let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null, extractionAlarmed=false, extractionPulse=0;
 let rogueDepth=0, rogueChoices=[], rogueRoomType='combat', rogueTypes={};
 let runSeed=Number(new URLSearchParams(location.search).get('seed'))||Math.floor(Math.random()*999999);
-let relics=[], relicRooms=new Set(), relicPower=0, lootBonus=0;
+let relics=[], relicRooms=new Set(), relicPower=0, lootBonus=0, runLog=[];
+let eventKind=0, eventChoiceOpen=false;
+let shopStock={};
 let bestRun=JSON.parse(localStorage.getItem('hlm-best-run')||'{"depth":0,"money":0,"time":999999}');
 function runRandom(){const x=Math.sin(runSeed++)*10000;return x-Math.floor(x);}
 const RELICS=[['青玉佩','伤害 +1',()=>{relicPower+=1;}],['金算盘','战利品价值 +25%',()=>{lootBonus+=.25;}],['踏雪靴','移动速度 +12%',()=>{difficulty.speed*=1.12;}]];
@@ -498,16 +500,25 @@ function startRound(){
   const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
-  if(rogueRoomType==='event'){
-    const event=runRandom();
-    if(event<.34){playerHealth=Math.min(100,playerHealth+25);document.getElementById('health').textContent=`生命 ${playerHealth}`;setPrompt('事件：玉露回春，生命值 +25');}
-    else if(event<.67){money+=180;updateAmmoHud();setPrompt('事件：贵人相助，获得 ¥180');}
-    else {lootValue+=120;lootInventory++;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;setPrompt('事件：暗格发现，获得额外战利品 ¥120');}
-  }
-  if(rogueRoomType==='shop'){setPrompt('商店房：本房商品八折，倒计时结束前按 B 购买');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
+  if(rogueRoomType==='event'){eventKind=Math.floor(runRandom()*3);setTimeout(showEventChoice,250);}
+  if(rogueRoomType==='shop'){shopStock={pistol:1,bow:1,ammo:2,health:1};setPrompt('商店房：本房商品八折，倒计时结束前按 B 购买');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
   if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
-function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;generateRogueChoices('baoyu');}
+function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;runLog=[];generateRogueChoices('baoyu');}
+function showEventChoice(){
+  const ov=document.getElementById('event-overlay'); if(!ov)return;
+  const data=[['玉露回春','饮下玉露恢复 40 生命','保留玉露，获得 ¥260'],['暗格抉择','打开暗格，获得高价值战利品','设下标记，获得攻击遗物'],['贵人相助','接受援手，获得 ¥320','拒绝援手，获得全弹药']][eventKind];
+  document.getElementById('event-title').textContent='展厅事件'; document.getElementById('event-description').textContent=data[0];
+  ov.querySelectorAll('[data-event-choice]').forEach(b=>b.textContent=data[Number(b.dataset.eventChoice)+1]); ov.style.display='flex'; eventChoiceOpen=true; if(locked)document.exitPointerLock();
+}
+function chooseEvent(choice){
+  if(!eventChoiceOpen)return; eventChoiceOpen=false; document.getElementById('event-overlay').style.display='none';
+  const effects=[
+    [()=>{playerHealth=Math.min(100,playerHealth+40);document.getElementById('health').textContent=`生命 ${playerHealth}`;},()=>{money+=260;updateAmmoHud();}],
+    [()=>{lootInventory++;lootValue+=320;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;},()=>{const r=RELICS[0];relics.push(r[0]);r[2]();}],
+    [()=>{money+=320;updateAmmoHud();},()=>{weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;updateAmmoHud();}]
+  ]; effects[eventKind][choice](); runLog.push(`事件${eventKind+1}-${choice?'右':'左'}`); setPrompt('事件选择已生效');
+}
 function generateRogueChoices(fromId){
   const from=byId[fromId]; if(!from)return;
   const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');
@@ -537,7 +548,7 @@ function grantRoomRelic(id){
 }
 function showRoundResult(win){
   document.getElementById('result-title').textContent=win?'回合胜利':'回合失败';
-  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>遗物：${relics.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}`;
+  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>遗物：${relics.join('、')||'无'}<br>事件记录：${runLog.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}`;
   document.getElementById('round-result').style.display='flex'; if(locked)document.exitPointerLock();
 }
 
@@ -1173,16 +1184,18 @@ function closeSearch() { document.getElementById('search-overlay').style.display
 function toggleBuy(){const ov=document.getElementById('buy-overlay');if(ov.style.display==='flex'){ov.style.display='none';}else{ov.style.display='flex';if(locked)document.exitPointerLock();}}
 function buyItem(type){
   if(roundState!=='countdown')return;
+  if(rogueRoomType==='shop'&&shopStock[type]===0){setPrompt('该商品已售罄');return;}
   const costs={pistol:400,bow:300,ammo:100,health:250};const cost=Math.round(costs[type]*(rogueRoomType==='shop'?.8:1));if(money<cost){setPrompt(`金钱不足，需要 ¥${cost}`);return;}money-=cost;
   if(type==='pistol'){weaponState.gun.reserve+=12;switchWeapon('gun');}
   if(type==='bow'){weaponState.bow.reserve+=8;switchWeapon('bow');}
   if(type==='ammo'){weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;reserve=weaponState[weaponMode]?.reserve||reserve;}
   if(type==='health'){playerHealth=Math.min(100,playerHealth+50);document.getElementById('health').textContent=`生命 ${playerHealth}`;}
-  updateAmmoHud();setPrompt('购买成功');
+  if(rogueRoomType==='shop')shopStock[type]--; updateAmmoHud();setPrompt('购买成功');
 }
 document.getElementById('buy-close').addEventListener('click',()=>document.getElementById('buy-overlay').style.display='none');
 document.getElementById('result-next').addEventListener('click',restartRound);
 document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>buyItem(b.dataset.buy)));
+document.querySelectorAll('[data-event-choice]').forEach(b=>b.addEventListener('click',()=>chooseEvent(Number(b.dataset.eventChoice))));
 
 // ===================== 详情（来自站点知识库） =====================
 function openDetail(id) {
