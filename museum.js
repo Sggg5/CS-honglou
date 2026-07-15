@@ -485,7 +485,12 @@ function startRound(){
 }
 function restartRound(){
   if(!started||!byId[current])return;
-  buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
+  document.getElementById('round-result').style.display='none'; buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
+}
+function showRoundResult(win){
+  document.getElementById('result-title').textContent=win?'回合胜利':'回合失败';
+  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}`;
+  document.getElementById('round-result').style.display='flex'; if(locked)document.exitPointerLock();
 }
 
 function addPickups() {
@@ -799,7 +804,7 @@ function damagePlayer(amount) {
   const hp=document.getElementById('health'); hp.textContent=`生命 ${playerHealth}`; hp.style.color=playerHealth>35?'#a9e3a1':'#ff7770';
   const flash=document.getElementById('damage-flash');flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');
   if(playerHealth===0){
-    roundState='lose'; clearMovementKeys(); setPrompt(`第 ${roundNumber} 回合失败 · 按 N 重新开始`);
+    roundState='lose'; clearMovementKeys(); setPrompt(`第 ${roundNumber} 回合失败 · 按 N 重新开始`); showRoundResult(false);
   }
 }
 
@@ -850,7 +855,7 @@ function updateMission() {
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
-    roundState='win'; money+=300; updateAmmoHud(); setPrompt(`第 ${roundNumber} 回合胜利 · 奖励 ¥300 · 按 N 再来一回合`);
+    roundState='win'; money+=300; updateAmmoHud(); setPrompt(`第 ${roundNumber} 回合胜利 · 奖励 ¥300 · 按 N 再来一回合`); showRoundResult(true);
   }
 }
 
@@ -1085,6 +1090,7 @@ function buyItem(type){
   updateAmmoHud();setPrompt('购买成功');
 }
 document.getElementById('buy-close').addEventListener('click',()=>document.getElementById('buy-overlay').style.display='none');
+document.getElementById('result-next').addEventListener('click',restartRound);
 document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>buyItem(b.dataset.buy)));
 
 // ===================== 详情（来自站点知识库） =====================

@@ -65,6 +65,11 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 .buy-list button { min-height:82px; text-align:left; padding:12px; color:#f4e4c3; background:#2b1c12; border:1px solid #6d4c2b; cursor:pointer; font:16px serif; }
 .buy-list button:hover { background:#573522; border-color:#d8b978; }
 .buy-list b { float:right; color:#e2bd68; font:14px system-ui; }.buy-list small { display:block; margin-top:10px; color:#ad9878; font:12px system-ui; }
+#round-result { position:fixed; inset:0; z-index:38; display:none; align-items:center; justify-content:center; background:rgba(10,7,4,.62); }
+.result-panel { min-width:300px; text-align:center; padding:28px 38px; background:rgba(39,25,15,.97); border:1px solid #a17a42; box-shadow:0 20px 60px #000; color:#f4e4c3; }
+#result-title { font:700 30px serif; letter-spacing:6px; color:#e5c475; }
+#result-detail { margin:18px 0 22px; line-height:2; color:#cdbb9b; font:14px system-ui; }
+#result-next { padding:10px 22px; background:#7a2e22; color:#fff2d7; border:0; cursor:pointer; font:15px serif; letter-spacing:2px; }
 .mode-badge { color:#dca58b; border-color:rgba(210,150,120,.35) !important; font-size:11px; }
 #damage-flash { position:fixed; inset:0; z-index:21; pointer-events:none; opacity:0; background:radial-gradient(circle,transparent 35%,rgba(160,0,0,.62)); }
 #damage-flash.show { animation:damage .32s ease-out; } @keyframes damage { from{opacity:1} to{opacity:0} }
