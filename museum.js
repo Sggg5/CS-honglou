@@ -465,7 +465,7 @@ function addCombatTargets() {
     group.position.set(friendly?spawn[0]:p[0], 0, friendly?spawn[1]:p[2]);
     group.userData.alive = true;
     group.userData.team = friendly?'friend':'enemy';
-    group.userData.health = i%3===0 ? 2 : 1;
+    group.userData.health = friendly ? 100 : (i%3===0 ? 2 : 1);
     group.userData.armored = i%3===0;
     group.userData.home = new THREE.Vector3(p[0],0,p[2]);
     group.userData.phase = Math.random()*Math.PI*2;
@@ -808,6 +808,10 @@ function damagePlayer(amount) {
     roundState='lose'; clearMovementKeys(); setPrompt(`第 ${roundNumber} 回合失败 · 按 N 重新开始`); showRoundResult(false);
   }
 }
+function damageAlly(ally,amount){
+  ally.userData.health=Math.max(0,ally.userData.health-amount);
+  if(ally.userData.health===0){ally.visible=false;setPrompt('队友已被击败');}
+}
 
 function updateBots(dt) {
   if(roundState!=='live')return;
@@ -838,10 +842,13 @@ function updateBots(dt) {
     }
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
       bot.userData.nextAttack=now+difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin);
-      const from=bot.position.clone();from.y=2.05;const to=camera.position.clone();
+      const ally=botGroups.filter(b=>b.userData.team==='friend'&&b.visible).sort((a,b)=>bot.position.distanceTo(a.position)-bot.position.distanceTo(b.position))[0];
+      const allyDist=ally?bot.position.distanceTo(ally.position):999;
+      const targetAlly=ally&&allyDist<dist*.9;
+      const from=bot.position.clone();from.y=2.05;const to=targetAlly?ally.position.clone():camera.position.clone();to.y=targetAlly?1.5:EYE;
       const tracer=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0xff4938,transparent:true,opacity:.85}));
       scene.add(tracer);enemyTracers.push({mesh:tracer,born:now});
-      if(Math.random()<Math.max(.35,.82-dist/30)) damagePlayer(difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1)));
+      if(Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){const damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);}
     }
   });
 }
