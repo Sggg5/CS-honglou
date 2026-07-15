@@ -514,6 +514,7 @@ function addCover(){
 }
 function resolveCover(pos){coverBoxes.forEach(o=>{const dx=pos.x-o.x,dz=pos.z-o.z;if(Math.abs(dx)<o.w+1.1&&Math.abs(dz)<o.d+1.1){if(Math.abs(dx)/(o.w+1.1)>Math.abs(dz)/(o.d+1.1))pos.x=o.x+(dx<0?-(o.w+1.1):o.w+1.1);else pos.z=o.z+(dz<0?-(o.d+1.1):o.d+1.1);}});}
 function insideCover(pos){return coverBoxes.some(o=>Math.abs(pos.x-o.x)<o.w&&Math.abs(pos.z-o.z)<o.d&&pos.y<1.7);}
+function lineBlocked(from,to){for(let i=1;i<12;i++){const p=from.clone().lerp(to,i/12);if(insideCover(p))return true;}return false;}
 
 function spawnWeaponDrop(pos){
   const type=Math.random()<.5?'bow':'gun', g=new THREE.Group();
@@ -841,6 +842,7 @@ function updateBots(dt) {
     }
     bot.position.x=Math.max(-W/2+2,Math.min(W/2-2,bot.position.x));
     bot.position.z=Math.max(-D/2+2,Math.min(D/2-2,bot.position.z));
+    resolveCover(bot.position);
     bot.position.y=0;
     if(bot.userData.team==='friend'){
       if(now>bot.userData.nextAttack){
@@ -857,7 +859,7 @@ function updateBots(dt) {
       const from=bot.position.clone();from.y=2.05;const to=targetAlly?ally.position.clone():camera.position.clone();to.y=targetAlly?1.5:EYE;
       const tracer=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0xff4938,transparent:true,opacity:.85}));
       scene.add(tracer);enemyTracers.push({mesh:tracer,born:now});
-      if(Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){const damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);}
+      if(!lineBlocked(from,to)&&Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){const damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);}
     }
   });
 }
