@@ -776,17 +776,18 @@ function meleeStrike() {
   if(hit&&hit.distance<3.2) hitTarget(hit);
 }
 
-function hitTarget(hit,power=1) {
+function hitTarget(hit,power=1,source='player') {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
   const headshot=!!hit.object.userData.headshot;
   root.userData.health -= headshot ? 2 : 1;
   const killed=root.userData.health<=0;
-  score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();
-  if(killed){money+=100;updateAmmoHud();}
+  if(source==='player'){score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();}
+  if(killed&&source==='player'){money+=100;updateAmmoHud();}
   if(!killed){
     const text=document.getElementById('combat-text');text.textContent='命中';text.style.left='50%';text.style.top='45%';text.classList.remove('show');void text.offsetWidth;text.classList.add('show');sound('hit');return;
   }
+  if(source!=='player'){root.visible=false;return;}
   const now=performance.now(); killStreak=now-lastKillAt<3200?killStreak+1:1; lastKillAt=now;
   const p=hit.point.clone().project(camera); const text=document.getElementById('combat-text');
   text.textContent=headshot?'爆头 +2':(power>.8?'+2':'+1'); text.style.left=`${(p.x*.5+.5)*innerWidth}px`; text.style.top=`${(-p.y*.5+.5)*innerHeight}px`; text.classList.remove('show');void text.offsetWidth;text.classList.add('show');
@@ -828,7 +829,13 @@ function updateBots(dt) {
     bot.position.x=Math.max(-W/2+2,Math.min(W/2-2,bot.position.x));
     bot.position.z=Math.max(-D/2+2,Math.min(D/2-2,bot.position.z));
     bot.position.y=0;
-    if(bot.userData.team==='friend') return;
+    if(bot.userData.team==='friend'){
+      if(now>bot.userData.nextAttack){
+        const enemy=botGroups.filter(b=>b.userData.team==='enemy'&&b.visible).sort((a,b)=>bot.position.distanceTo(a.position)-bot.position.distanceTo(b.position))[0];
+        bot.userData.nextAttack=now+1700;if(enemy&&bot.position.distanceTo(enemy.position)<18){const from=bot.position.clone();from.y=1.8;const to=enemy.position.clone();to.y=1.4;const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0x75c8ff,transparent:true,opacity:.85}));scene.add(line);enemyTracers.push({mesh:line,born:now});if(Math.random()<.7){const part=targetMeshes.find(m=>m.userData.targetRoot===enemy&&m.visible);if(part)hitTarget({object:part,point:to},1,'ally');}}
+      }
+      return;
+    }
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
       bot.userData.nextAttack=now+difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin);
       const from=bot.position.clone();from.y=2.05;const to=camera.position.clone();
