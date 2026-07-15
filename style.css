@@ -129,8 +129,12 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 }
 .intro-card h1 { font-size: 38px; letter-spacing: 4px; color: #1c140d; }
 .intro-card .sub { margin-top: 8px; font-size: 16px; color: #7a3a22; letter-spacing: 2px; }
-.intro-card .desc { margin-top: 20px; font-size: 15px; line-height: 1.9; color: #3a2a1a; text-align: left; }
-.stats { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 22px 0 8px; }
+.game-mode { display:inline-block; margin-top:10px; padding:5px 14px; color:#fff7e7; background:#8d3024; letter-spacing:3px; font-size:13px; }
+.game-goal { margin:10px 0 4px; color:#8d3024; font-weight:700; letter-spacing:2px; }
+.combat-controls { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 16px; margin:12px 0 4px; color:#715b3e; font-size:12px; }
+.combat-controls kbd { padding:4px 7px; border:1px solid #bda77c; border-radius:4px; background:#fffaf0; color:#442d1c; font:12px system-ui,sans-serif; }
+.intro-card .desc { margin-top: 12px; font-size: 14px; line-height: 1.65; color: #3a2a1a; text-align: left; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 12px 0 6px; }
 .stats span { padding: 6px 14px; background: #efe3c8; border: 1px solid #cbb98e; border-radius: 20px; font-size: 14px; }
 .stats b { color: #a52a1f; }
 .stats .total { background: #2a1d12; color: #f0e6d2; border-color: #2a1d12; }
@@ -138,7 +142,7 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 .difficulty button { padding:6px 14px; border:1px solid #c5ad7f; border-radius:4px; background:#fffaf0; color:#5a3b25; font:13px inherit; cursor:pointer; }
 .difficulty button:hover,.difficulty button.selected { background:#7a2e22; color:#fff5df; border-color:#7a2e22; }
 .controls {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 18px 0 4px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0 4px;
   padding: 12px; border-top: 1px solid #d6c6a5; border-bottom: 1px solid #d6c6a5;
 }
 .controls div { display: flex; flex-direction: column; gap: 7px; align-items: center; color: #715b3e; font-size: 12px; }
