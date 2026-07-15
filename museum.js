@@ -456,6 +456,9 @@ function addCombatTargets() {
     stand.position.y = .08;
     group.add(body, head, eyeL, eyeR, cheekL, cheekR, smile, chest, armL, armR, legL, legR, stand);
     if(isFrost) group.add(frostHair,ponyL,ponyR,crystal);
+    const badgeCanvas=document.createElement('canvas'); badgeCanvas.width=128; badgeCanvas.height=64; const bx=badgeCanvas.getContext('2d');
+    bx.fillStyle=friendly?'rgba(64,139,190,.88)':'rgba(172,62,60,.88)'; bx.roundRect(4,4,120,56,16); bx.fill(); bx.fillStyle='#fff5df'; bx.font='bold 34px serif'; bx.textAlign='center'; bx.textBaseline='middle'; bx.fillText(friendly?'友':'敌',64,33);
+    const badge=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(badgeCanvas),transparent:true,depthTest:false})); badge.position.y=3.25; badge.scale.set(.72,.36,1); group.add(badge);
     group.position.set(friendly?spawn[0]:p[0], 0, friendly?spawn[1]:p[2]);
     group.userData.alive = true;
     group.userData.team = friendly?'friend':'enemy';
