@@ -257,7 +257,7 @@ function featureTexture(ex) {
   return tex;
 }
 
-function doorTexture(title, color) {
+function doorTexture(title, color, type='combat') {
   const w = 420, h = 640;
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const x = c.getContext('2d');
@@ -272,6 +272,8 @@ function doorTexture(title, color) {
   // 标题
   x.fillStyle = '#f4ecd8'; x.font = `bold 52px ${FONT}`;
   wrapText(x, title, w / 2, 200, w - 40, 64, 3);
+  const risk={combat:'风险 中 · 收益 中',treasure:'风险 低 · 收益 高',elite:'风险 高 · 收益 高',event:'风险 低 · 随机事件',shop:'风险 低 · 八折补给',boss:'风险 极高 · 稀有战利品'}[type]||'风险 未知';
+  x.fillStyle='#d8c29a'; x.font=`24px ${FONT}`; x.fillText(`${ROOM_TYPES[type]||'展厅'} · ${risk}`,w/2,300);
   // 门环装饰
   x.strokeStyle = '#caa24a'; x.lineWidth = 6;
   x.beginPath(); x.arc(w / 2, h - 150, 34, 0, Math.PI * 2); x.stroke();
@@ -672,7 +674,7 @@ function buildRoom(ex) {
 }
 
 function addDoor(id, color, pos, rotY) {
-  const t = doorTexture(byId[id].title, color);
+  const t = doorTexture(byId[id].title, color, rogueTypes[id]||'combat');
   const mat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.7, emissive: 0x000000 });
   const panel = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 4), mat);
   panel.position.copy(pos); panel.rotation.y = rotY;
