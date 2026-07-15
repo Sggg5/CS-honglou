@@ -56,6 +56,15 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 #mission { color:#e8cd92; }
 #mission-time { color:#c8c0ae; font-variant-numeric:tabular-nums; }
 #round-status { color:#dca58b; min-width:72px; text-align:center; }
+#money { color:#d8b978; }
+#buy-overlay { position:fixed; inset:0; z-index:36; display:none; align-items:center; justify-content:center; background:rgba(12,8,5,.76); }
+.buy-panel { width:min(520px,92vw); background:rgba(37,24,15,.97); border:1px solid #9b7540; box-shadow:0 20px 60px #000; padding:22px; }
+.buy-title { color:#f4e4c3; font-size:19px; letter-spacing:3px; border-bottom:1px solid #614524; padding-bottom:14px; }
+.buy-title button { float:right; color:#ead7b4; background:#4b2d1d; border:1px solid #9b7540; padding:5px 12px; cursor:pointer; }
+.buy-list { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+.buy-list button { min-height:82px; text-align:left; padding:12px; color:#f4e4c3; background:#2b1c12; border:1px solid #6d4c2b; cursor:pointer; font:16px serif; }
+.buy-list button:hover { background:#573522; border-color:#d8b978; }
+.buy-list b { float:right; color:#e2bd68; font:14px system-ui; }.buy-list small { display:block; margin-top:10px; color:#ad9878; font:12px system-ui; }
 .mode-badge { color:#dca58b; border-color:rgba(210,150,120,.35) !important; font-size:11px; }
 #damage-flash { position:fixed; inset:0; z-index:21; pointer-events:none; opacity:0; background:radial-gradient(circle,transparent 35%,rgba(160,0,0,.62)); }
 #damage-flash.show { animation:damage .32s ease-out; } @keyframes damage { from{opacity:1} to{opacity:0} }

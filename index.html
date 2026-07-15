@@ -32,6 +32,7 @@
     <span id="mission-time">00:00</span>
     <span id="round-status">准备中</span>
     <span id="health">生命 100</span>
+    <span id="money">¥ 800</span>
     <span id="score">命中 0</span>
     <span id="ammo">12 / 48</span>
   </div>
@@ -105,6 +106,12 @@
       <div id="search-list"></div>
     </div>
   </div>
+  <div id="buy-overlay"><div class="buy-panel"><div class="buy-title">补给商 · 准备阶段 <button id="buy-close">关闭</button></div><div class="buy-list">
+    <button data-buy="pistol">手枪 <b>¥400</b><small>12 发弹匣</small></button>
+    <button data-buy="bow">弓箭 <b>¥300</b><small>8 支箭</small></button>
+    <button data-buy="ammo">弹药 <b>¥100</b><small>+12 弹 / +8 箭</small></button>
+    <button data-buy="health">医疗包 <b>¥250</b><small>恢复 50 生命</small></button>
+  </div></div></div>
 
   <!-- 详情（来自站点知识库 hlm.yanghuide.kdns.fr） -->
   <div id="detail-overlay">
@@ -121,6 +128,6 @@
   <!-- 过渡黑幕 -->
   <div id="fade"></div>
 
-  <script type="module" src="./museum.js?v=20260715-reload-19"></script>
+  <script type="module" src="./museum.js?v=20260715-buy-20"></script>
 </body>
 </html>

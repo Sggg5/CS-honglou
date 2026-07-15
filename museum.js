@@ -369,6 +369,7 @@ let missionStartedAt = 0;
 let missionComplete = false;
 let killStreak = 0, lastKillAt = 0;
 let roundNumber=0, roundState='idle', roundCountdown=0;
+let money=800;
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -676,6 +677,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyE' && hoverDoor) go(hoverDoor.userData.target);
   if (e.code === 'KeyR') reloadWeapon();
   if (e.code === 'KeyN' && (roundState==='win'||roundState==='lose')) restartRound();
+  if (e.code === 'KeyB' && roundState==='countdown') toggleBuy();
   if (e.code === 'Digit1') switchWeapon('bow');
   if (e.code === 'Digit2') switchWeapon('gun');
   if (e.code === 'Digit3') switchWeapon('knife');
@@ -704,6 +706,7 @@ function updateAmmoHud() {
   document.getElementById('ammo').textContent = weaponMode==='knife' ? '近战' :
     (reloading ? (weaponMode==='bow'?'搭箭中…':'换弹中…') : `${weaponMode==='bow'?'箭':'弹'} ${ammo} / ${reserve}`);
   document.getElementById('score').textContent = `命中 ${score}`;
+  document.getElementById('money').textContent=`¥ ${money}`;
 }
 
 function switchWeapon(mode){
@@ -1069,6 +1072,19 @@ function openSearch() {
   const inp = document.getElementById('search-input'); inp.value = ''; inp.focus(); renderSearch('');
 }
 function closeSearch() { document.getElementById('search-overlay').style.display = 'none'; }
+
+function toggleBuy(){const ov=document.getElementById('buy-overlay');if(ov.style.display==='flex'){ov.style.display='none';}else{ov.style.display='flex';if(locked)document.exitPointerLock();}}
+function buyItem(type){
+  if(roundState!=='countdown')return;
+  const costs={pistol:400,bow:300,ammo:100,health:250};if(money<costs[type]){setPrompt('金钱不足');return;}money-=costs[type];
+  if(type==='pistol'){weaponState.gun.reserve+=12;switchWeapon('gun');}
+  if(type==='bow'){weaponState.bow.reserve+=8;switchWeapon('bow');}
+  if(type==='ammo'){weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;reserve=weaponState[weaponMode]?.reserve||reserve;}
+  if(type==='health'){playerHealth=Math.min(100,playerHealth+50);document.getElementById('health').textContent=`生命 ${playerHealth}`;}
+  updateAmmoHud();setPrompt('购买成功');
+}
+document.getElementById('buy-close').addEventListener('click',()=>document.getElementById('buy-overlay').style.display='none');
+document.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click',()=>buyItem(b.dataset.buy)));
 
 // ===================== 详情（来自站点知识库） =====================
 function openDetail(id) {
