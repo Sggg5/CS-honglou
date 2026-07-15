@@ -391,6 +391,8 @@ document.querySelectorAll('[data-difficulty]').forEach(btn=>btn.addEventListener
   document.querySelectorAll('[data-difficulty]').forEach(b=>b.classList.toggle('selected',b===btn));
 }));
 let ammo = 1, reserve = 30, score = 0, reloading = false, lastShot = 0;
+const WEAPON_TUNING={bow:{delay:550,range:32},gun:{delay:150,range:95},knife:{delay:420,range:3.2}};
+const playerVelocity=new THREE.Vector3();
 let current = null;
 let currentCenterpiece = null;
 let detailOpen = false;
@@ -481,6 +483,7 @@ function addCombatTargets() {
     group.userData.home = new THREE.Vector3(p[0],0,p[2]);
     group.userData.phase = Math.random()*Math.PI*2;
     group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
+    group.userData.aiState='idle';
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
     roomGroup.add(group); botGroups.push(group);
     if(!friendly) targetMeshes.push(body,head,chest,armL,armR,legL,legR);
@@ -751,7 +754,7 @@ window.addEventListener('keydown', e => {
   if (e.code === '/' ) { e.preventDefault(); openSearch(); }
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
-function clearMovementKeys(){ Object.keys(keys).forEach(k=>{keys[k]=false;}); }
+function clearMovementKeys(){ Object.keys(keys).forEach(k=>{keys[k]=false;}); playerVelocity.set(0,0,0); }
 window.addEventListener('blur', clearMovementKeys);
 document.addEventListener('visibilitychange', ()=>{if(document.hidden)clearMovementKeys();});
 
@@ -797,7 +800,7 @@ function shoot() {
   if(roundState!=='live')return;
   const now = performance.now();
   const chargePower=weaponMode==='bow'?Math.min(1,(now-chargeStarted)/900):1;
-  const delay=weaponMode==='bow'?550:weaponMode==='gun'?150:420;
+  const delay=WEAPON_TUNING[weaponMode].delay;
   if (reloading || now - lastShot < delay) return;
   if (weaponMode!=='knife' && ammo <= 0) { reloadWeapon(); return; }
   lastShot = now; recoil = 1;
@@ -832,19 +835,20 @@ function meleeStrike() {
   if (weaponMode !== 'knife') return;
   ray.setFromCamera(center, camera);
   const hit=ray.intersectObjects(targetMeshes.filter(m=>m.visible&&m.userData.targetRoot?.visible),false)[0];
-  if(hit&&hit.distance<3.2) hitTarget(hit);
+  if(hit&&hit.distance<WEAPON_TUNING.knife.range) hitTarget(hit);
 }
 
 function hitTarget(hit,power=1,source='player') {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
   const headshot=!!hit.object.userData.headshot;
-  root.userData.health -= headshot ? 2+relicPower : 1+relicPower;
+  const armoredHit=!!root.userData.armored&&!headshot;
+  root.userData.health -= Math.max(1,(headshot ? 2 : 1)+relicPower-(armoredHit?1:0));
   const killed=root.userData.health<=0;
   if(source==='player'){score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();}
   if(killed&&source==='player'){money+=100;updateAmmoHud();}
   if(!killed){
-    const text=document.getElementById('combat-text');text.textContent='命中';text.style.left='50%';text.style.top='45%';text.classList.remove('show');void text.offsetWidth;text.classList.add('show');sound('hit');return;
+    const text=document.getElementById('combat-text');text.textContent=armoredHit?'护甲命中':'命中';text.style.color=armoredHit?'#f5c96a':'#d9f3ff';text.style.left='50%';text.style.top='45%';text.classList.remove('show');void text.offsetWidth;text.classList.add('show');sound('hit');return;
   }
   if(source!=='player'){root.visible=false;return;}
   const now=performance.now(); killStreak=now-lastKillAt<3200?killStreak+1:1; lastKillAt=now;
@@ -879,6 +883,7 @@ function updateBots(dt) {
     if(!bot.visible)return;
     const dx=camera.position.x-bot.position.x,dz=camera.position.z-bot.position.z;
     const dist=Math.hypot(dx,dz)||1;
+    bot.userData.aiState=dist<6?'attack':(dist<17?'alert':'patrol');
     bot.rotation.y=Math.atan2(dx,dz);
     bot.userData.phase+=dt*(1.5+i*.08);
     if(dist>4.6){
@@ -975,14 +980,18 @@ function animate() {
       && !detailOpen) {
     const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-    const sp = 9;
+    const sprint=keys['ShiftLeft']||keys['ShiftRight'];
+    const sp = (sprint?12:9)*(weaponMode==='knife'?1.05:1);
     const move = new THREE.Vector3();
     if (keys['KeyW']) move.add(fwd);
     if (keys['KeyS']) move.sub(fwd);
     if (keys['KeyD']) move.add(right);
     if (keys['KeyA']) move.sub(right);
-    if (move.lengthSq() > 0) move.normalize().multiplyScalar(sp * dt);
-    camera.position.add(move);
+    if (move.lengthSq() > 0) move.normalize().multiplyScalar(sp);
+    playerVelocity.x=THREE.MathUtils.damp(playerVelocity.x,move.x,.18,dt);
+    playerVelocity.z=THREE.MathUtils.damp(playerVelocity.z,move.z,.18,dt);
+    camera.position.x+=playerVelocity.x*dt;
+    camera.position.z+=playerVelocity.z*dt;
     camera.position.x = Math.max(-W / 2 + 1.4, Math.min(W / 2 - 1.4, camera.position.x));
     camera.position.z = Math.max(-D / 2 + 1.4, Math.min(D / 2 - 1.4, camera.position.z));
     resolveCover(camera.position);
