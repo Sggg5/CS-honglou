@@ -371,6 +371,7 @@ let missionComplete = false;
 let killStreak = 0, lastKillAt = 0;
 let roundNumber=0, roundState='idle', roundCountdown=0;
 let money=800;
+let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null;
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -479,6 +480,7 @@ function addCombatTargets() {
 
 function startRound(){
   roundNumber++; roundState='countdown'; roundCountdown=3; playerHealth=100; missionComplete=false;
+  lootInventory=0; lootValue=0; document.getElementById('loot').textContent='战利品 0';
   document.getElementById('health').textContent='生命 100';
   const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
@@ -496,16 +498,17 @@ function showRoundResult(win){
 
 function addPickups() {
   pickupMeshes=[];
-  const spots=[[-10,0,-2],[10,0,-2],[0,0,7]];
+  const spots=[[-10,0,-2],[10,0,-2],[0,0,7],[-2,0,3],[3,0,-5]];
   spots.forEach((p,i)=>{
     const group=new THREE.Group();
-    const isHealth=i===0;
-    const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:0xc48b2d,roughness:.5,metalness:.2}));
+    const isHealth=i===0,isLoot=i>=3;
+    const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:(isLoot?0x8e5db5:0xc48b2d),roughness:.5,metalness:.2}));
     box.position.y=.35; group.add(box);
     if(isHealth){const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.52,.04),new THREE.MeshBasicMaterial({color:0xffe8d0}));cross.position.set(0,.36,.36);group.add(cross);const cross2=cross.clone();cross2.rotation.z=Math.PI/2;group.add(cross2);}
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
-    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':'ammo';group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
+    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.value=isLoot?(80+i*60):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
   });
+  extractionZone=new THREE.Mesh(new THREE.TorusGeometry(1.55,.06,10,32),new THREE.MeshBasicMaterial({color:0x6fd09a,transparent:true,opacity:.8})); extractionZone.rotation.x=Math.PI/2; extractionZone.position.set(0,.05,-11.5); roomGroup.add(extractionZone);
 }
 
 function addCover(){
@@ -531,8 +534,10 @@ function updateWeaponDrops(dt){
 }
 
 function updatePickups(dt){
-  pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}}});
+  pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现战利品 · 价值 ¥${p.userData.value}`);}}});
 }
+function updateExtraction(dt){if(roundState!=='live'||!extractionZone)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;setPrompt(`撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else extractionProgress=0;}
+function finishExtraction(){roundState='win';money+=lootValue;updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}`);showRoundResult(true);}
 
 function buildRoom(ex) {
   disposeGroup(roomGroup);
@@ -815,7 +820,7 @@ function damagePlayer(amount) {
   const hp=document.getElementById('health'); hp.textContent=`生命 ${playerHealth}`; hp.style.color=playerHealth>35?'#a9e3a1':'#ff7770';
   const flash=document.getElementById('damage-flash');flash.classList.remove('show');void flash.offsetWidth;flash.classList.add('show');
   if(playerHealth===0){
-    roundState='lose'; clearMovementKeys(); setPrompt(`第 ${roundNumber} 回合失败 · 按 N 重新开始`); showRoundResult(false);
+    lootInventory=0; lootValue=0; document.getElementById('loot').textContent='战利品 0'; roundState='lose'; clearMovementKeys(); setPrompt(`第 ${roundNumber} 回合失败 · 战利品丢失 · 按 N 重新开始`); showRoundResult(false);
   }
 }
 function damageAlly(ally,amount){
@@ -880,7 +885,7 @@ function updateMission() {
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
-    roundState='win'; money+=300; updateAmmoHud(); setPrompt(`第 ${roundNumber} 回合胜利 · 奖励 ¥300 · 按 N 再来一回合`); showRoundResult(true);
+    missionComplete=true; setPrompt('敌人已清除 · 前往绿色撤离点');
   }
 }
 
@@ -947,6 +952,7 @@ function animate() {
   if(started&&!detailOpen) updateMission();
   if(started&&!detailOpen) updatePickups(dt);
   if(started&&!detailOpen) updateWeaponDrops(dt);
+  if(started&&!detailOpen) updateExtraction(dt);
   // 枪械后坐力回弹与轻微呼吸摆动
   recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
