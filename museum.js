@@ -1031,8 +1031,9 @@ function animate() {
     if (keys['KeyD']) move.add(right);
     if (keys['KeyA']) move.sub(right);
     if (move.lengthSq() > 0) move.normalize().multiplyScalar(sp);
-    playerVelocity.x=THREE.MathUtils.damp(playerVelocity.x,move.x,.18,dt);
-    playerVelocity.z=THREE.MathUtils.damp(playerVelocity.z,move.z,.18,dt);
+    const response=move.lengthSq()>0?24:32;
+    playerVelocity.x=THREE.MathUtils.damp(playerVelocity.x,move.x,response,dt);
+    playerVelocity.z=THREE.MathUtils.damp(playerVelocity.z,move.z,response,dt);
     camera.position.x+=playerVelocity.x*dt;
     camera.position.z+=playerVelocity.z*dt;
     camera.position.x = Math.max(-W / 2 + 1.4, Math.min(W / 2 - 1.4, camera.position.x));
