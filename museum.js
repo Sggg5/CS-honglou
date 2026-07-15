@@ -362,6 +362,7 @@ let doorMeshes = [];
 let targetMeshes = [];
 let botGroups = [];
 let pickupMeshes = [];
+let droppedWeapons = [];
 let playerHealth = 100;
 let missionStartedAt = 0;
 let missionComplete = false;
@@ -497,6 +498,20 @@ function addPickups() {
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
     group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':'ammo';group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
   });
+}
+
+function spawnWeaponDrop(pos){
+  const type=Math.random()<.5?'bow':'gun', g=new THREE.Group();
+  const color=type==='bow'?0x8e5a32:0x4f5963;
+  const box=new THREE.Mesh(new THREE.BoxGeometry(.62,.3,.42),new THREE.MeshStandardMaterial({color,metalness:.35,roughness:.45}));box.position.y=.22;g.add(box);
+  const c=document.createElement('canvas');c.width=128;c.height=48;const x=c.getContext('2d');x.fillStyle='#fff4d2';x.font='bold 23px sans-serif';x.textAlign='center';x.fillText(type==='bow'?'弓箭':'手枪',64,31);
+  const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false}));tag.position.y=.72;tag.scale.set(.8,.3,1);g.add(tag);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.4,.02,8,20),new THREE.MeshBasicMaterial({color:0xffd56a}));ring.rotation.x=Math.PI/2;ring.position.y=.04;g.add(ring);
+  g.position.copy(pos);g.userData.type=type;g.userData.phase=Math.random()*6;roomGroup.add(g);droppedWeapons.push(g);
+}
+
+function updateWeaponDrops(dt){
+  droppedWeapons.forEach(d=>{if(!d.visible)return;d.userData.phase+=dt*2;d.position.y=Math.sin(d.userData.phase)*.05;d.rotation.y+=dt*.7;if(d.position.distanceTo(camera.position)<1.5){switchWeapon(d.userData.type);weaponState[d.userData.type].reserve+=d.userData.type==='bow'?8:12;ammo=weaponState[weaponMode].ammo;reserve=weaponState[weaponMode].reserve;updateAmmoHud();d.visible=false;sound('hit');setPrompt(`${d.userData.type==='bow'?'弓箭':'手枪'}已拾取`);}});
 }
 
 function updatePickups(dt){
@@ -766,6 +781,7 @@ function hitTarget(hit,power=1) {
   text.textContent=headshot?'爆头 +2':(power>.8?'+2':'+1'); text.style.left=`${(p.x*.5+.5)*innerWidth}px`; text.style.top=`${(-p.y*.5+.5)*innerHeight}px`; text.classList.remove('show');void text.offsetWidth;text.classList.add('show');
   const feed=document.getElementById('killfeed'); const entry=document.createElement('div'); entry.className=`kill-entry${headshot?' head':''}`; entry.textContent=headshot?'爆头击杀  +2':'目标击杀  +1'; if(killStreak>1)entry.textContent+=`  · ${killStreak} 连杀`; feed.prepend(entry); while(feed.children.length>4)feed.lastElementChild.remove(); setTimeout(()=>entry.remove(),4200);
   sound('hit');
+  if(Math.random()<.35)spawnWeaponDrop(root.position.clone());
   const hm = document.getElementById('hitmarker'); hm.classList.remove('show'); void hm.offsetWidth; hm.classList.add('show');
   root.visible = false;
 }
@@ -893,6 +909,7 @@ function animate() {
   if(started&&!detailOpen) updateBots(dt);
   if(started&&!detailOpen) updateMission();
   if(started&&!detailOpen) updatePickups(dt);
+  if(started&&!detailOpen) updateWeaponDrops(dt);
   // 枪械后坐力回弹与轻微呼吸摆动
   recoil = Math.max(0, recoil - dt * (weaponMode==='knife' ? 4 : 8));
   const moving = keys['KeyW'] || keys['KeyA'] || keys['KeyS'] || keys['KeyD'];
