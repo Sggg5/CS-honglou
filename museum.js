@@ -377,13 +377,17 @@ let runSeed=Number(new URLSearchParams(location.search).get('seed'))||Math.floor
 let relics=[], relicRooms=new Set(), relicPower=0, lootBonus=0, runLog=[];
 let eventKind=0, eventChoiceOpen=false;
 let shopStock={};
-let bestRun=JSON.parse(localStorage.getItem('hlm-best-run')||'{"version":1,"depth":0,"money":0,"time":999999,"unlocks":[]}');
-if(!bestRun.version)bestRun={version:1,depth:bestRun.depth||0,money:bestRun.money||0,time:bestRun.time||999999,unlocks:[]};
+let bestRun=JSON.parse(localStorage.getItem('hlm-best-run')||'{"version":1,"depth":0,"money":0,"time":999999,"unlocks":[],"story":[]}');
+if(!bestRun.version)bestRun={version:1,depth:bestRun.depth||0,money:bestRun.money||0,time:bestRun.time||999999,unlocks:[],story:[]};
+bestRun.story=bestRun.story||[];
 let runChallenge={noDamage:true,noBuy:true,bowOnly:true};
 function runRandom(){const x=Math.sin(runSeed++)*10000;return x-Math.floor(x);}
 const RELICS=[['青玉佩','伤害 +1',()=>{relicPower+=1;}],['金算盘','战利品价值 +25%',()=>{lootBonus+=.25;}],['踏雪靴','移动速度 +12%',()=>{difficulty.speed*=1.12;}]];
 const ROGUE_LENGTH=8;
 const ROOM_TYPES={combat:'战斗',treasure:'宝藏',elite:'精英',event:'事件',shop:'商店',boss:'首领'};
+const CHARACTER_RULES={baoyu:['怡红院','战利品价值 +15%',()=>{lootBonus+=.15;}],daiyu:['潇湘馆','初始生命 +15',()=>{playerHealth=Math.min(100,playerHealth+15);}],baochai:['蘅芜苑','商店额外九折',()=>{}],xifeng:['凤姐厅','进入时获得 ¥100',()=>{money+=100;updateAmmoHud();}],jiamu:['贾府正厅','敌人警觉范围增加',()=>{}]};
+const STORY_CHAPTERS=['绛芸轩的灯影','潇湘馆的残诗','蘅芜苑的冷香','凤姐厅的账册','贾府门前的风雪'];
+let roomTheme=null, roomThemeApplied='';
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -502,11 +506,13 @@ function startRound(){
   const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
+  const themeKey=`${rogueDepth}:${current}`;
+  if(roomTheme&&roomThemeApplied!==themeKey){roomThemeApplied=themeKey;roomTheme[2]();setPrompt(`${roomTheme[0]}：${roomTheme[1]}`);}
   if(rogueRoomType==='event'){eventKind=Math.floor(runRandom()*3);setTimeout(showEventChoice,250);}
   if(rogueRoomType==='shop'){shopStock={pistol:1,bow:1,ammo:2,health:1};setPrompt('商店房：本房商品八折，倒计时结束前按 B 购买');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
   if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
-function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;runLog=[];runChallenge={noDamage:true,noBuy:true,bowOnly:true};generateRogueChoices('baoyu');}
+function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;runLog=[];roomThemeApplied='';runChallenge={noDamage:true,noBuy:true,bowOnly:true};generateRogueChoices('baoyu');}
 function showEventChoice(){
   const ov=document.getElementById('event-overlay'); if(!ov)return;
   const data=[['玉露回春','饮下玉露恢复 40 生命','保留玉露，获得 ¥260'],['暗格抉择','打开暗格，获得高价值战利品','设下标记，获得攻击遗物'],['贵人相助','接受援手，获得 ¥320','拒绝援手，获得全弹药']][eventKind];
@@ -550,7 +556,7 @@ function grantRoomRelic(id){
 }
 function showRoundResult(win){
   document.getElementById('result-title').textContent=win?'回合胜利':'回合失败';
-  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>遗物：${relics.join('、')||'无'}<br>事件记录：${runLog.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}<br>永久解锁：${bestRun.unlocks?.join('、')||'无'}`;
+  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>遗物：${relics.join('、')||'无'}<br>事件记录：${runLog.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}<br>永久解锁：${bestRun.unlocks?.join('、')||'无'}<br>已解锁篇章：${bestRun.story?.join('、')||'无'}`;
   document.getElementById('round-result').style.display='flex'; if(locked)document.exitPointerLock();
 }
 
@@ -597,7 +603,7 @@ function updatePickups(dt){
   pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现${p.userData.rarity}战利品 · 价值 ¥${p.userData.value}`);}}});
 }
 function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;if(extractionProgress>1.2&&!extractionAlarmed){extractionAlarmed=true;setPrompt('撤离警报！离开撤离圈可重置警报');}if(extractionAlarmed){extractionPulse+=dt;if(extractionPulse>1.1){extractionPulse=0;damagePlayer(4);}}else setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else {extractionProgress=0;extractionAlarmed=false;extractionPulse=0;}}
-function finishExtraction(){roundState='win';money+=lootValue;bestRun.depth=Math.max(bestRun.depth,rogueDepth+1);bestRun.money=Math.max(bestRun.money,money);bestRun.time=Math.min(bestRun.time,Math.floor((performance.now()-missionStartedAt)/1000));const unlocked=[];if(runChallenge.noDamage)unlocked.push('无伤撤离');if(runChallenge.noBuy)unlocked.push('禁购通关');if(runChallenge.bowOnly)unlocked.push('弓箭大师');bestRun.unlocks=[...new Set([...(bestRun.unlocks||[]),...unlocked])];localStorage.setItem('hlm-best-run',JSON.stringify(bestRun));updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}${unlocked.length?' · 解锁 '+unlocked.join('、'):''}`);showRoundResult(true);}
+function finishExtraction(){roundState='win';money+=lootValue;bestRun.depth=Math.max(bestRun.depth,rogueDepth+1);bestRun.money=Math.max(bestRun.money,money);bestRun.time=Math.min(bestRun.time,Math.floor((performance.now()-missionStartedAt)/1000));const unlocked=[];if(runChallenge.noDamage)unlocked.push('无伤撤离');if(runChallenge.noBuy)unlocked.push('禁购通关');if(runChallenge.bowOnly)unlocked.push('弓箭大师');bestRun.unlocks=[...new Set([...(bestRun.unlocks||[]),...unlocked])];const chapter=STORY_CHAPTERS[rogueDepth%STORY_CHAPTERS.length];if(!bestRun.story.includes(chapter))bestRun.story.push(chapter);localStorage.setItem('hlm-best-run',JSON.stringify(bestRun));updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}${unlocked.length?' · 解锁 '+unlocked.join('、'):''}`);showRoundResult(true);}
 
 function buildRoom(ex) {
   disposeGroup(roomGroup);
@@ -654,6 +660,7 @@ function buildRoom(ex) {
   document.getElementById('cur-name').textContent = ex.title;
   document.getElementById('cur-cat').textContent = ex.category;
   document.getElementById('cur-cat').style.background = CATEGORIES[ex.category].color;
+  roomTheme=CHARACTER_RULES[ex.id]||null;
 
   // 中央三维展品（人物）
   const cp = makeCenterpiece(ex);
@@ -1188,7 +1195,7 @@ function toggleBuy(){const ov=document.getElementById('buy-overlay');if(ov.style
 function buyItem(type){
   if(roundState!=='countdown')return;
   if(rogueRoomType==='shop'&&shopStock[type]===0){setPrompt('该商品已售罄');return;}
-  const costs={pistol:400,bow:300,ammo:100,health:250};const cost=Math.round(costs[type]*(rogueRoomType==='shop'?.8:1));if(money<cost){setPrompt(`金钱不足，需要 ¥${cost}`);return;}runChallenge.noBuy=false;money-=cost;
+  const costs={pistol:400,bow:300,ammo:100,health:250};const discount=rogueRoomType==='shop'?(current==='baochai'?.72:.8):1;const cost=Math.round(costs[type]*discount);if(money<cost){setPrompt(`金钱不足，需要 ¥${cost}`);return;}runChallenge.noBuy=false;money-=cost;
   if(type==='pistol'){weaponState.gun.reserve+=12;switchWeapon('gun');}
   if(type==='bow'){weaponState.bow.reserve+=8;switchWeapon('bow');}
   if(type==='ammo'){weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;reserve=weaponState[weaponMode]?.reserve||reserve;}
