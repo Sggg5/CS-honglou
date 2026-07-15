@@ -568,13 +568,13 @@ function addPickups() {
   spots.forEach((p,i)=>{
     const group=new THREE.Group();
     const isHealth=i===0,isLoot=i>=3||rogueRoomType==='treasure';
-    const rarity=isLoot?(['普通','稀有','史诗'][Math.floor(runRandom()*3)]):'';
-    const rarityColor=rarity==='史诗'?0xd66cff:(rarity==='稀有'?0x59b7ff:0x8e5db5);
+    const rarity=isLoot?(rogueRoomType==='boss'&&i===3?'传说':(['普通','稀有','史诗'][Math.floor(runRandom()*3)])):'';
+    const rarityColor=rarity==='传说'?0xffa62b:(rarity==='史诗'?0xd66cff:(rarity==='稀有'?0x59b7ff:0x8e5db5));
     const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:(isLoot?rarityColor:0xc48b2d),roughness:.5,metalness:.2}));
     box.position.y=.35; group.add(box);
     if(isHealth){const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.52,.04),new THREE.MeshBasicMaterial({color:0xffe8d0}));cross.position.set(0,.36,.36);group.add(cross);const cross2=cross.clone();cross2.rotation.z=Math.PI/2;group.add(cross2);}
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
-    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.rarity=rarity;group.userData.value=isLoot?Math.round((80+i*60)*(rarity==='稀有'?1.7:rarity==='史诗'?2.8:1)*(1+lootBonus)):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
+    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.rarity=rarity;group.userData.value=isLoot?Math.round((80+i*60)*(rarity==='稀有'?1.7:rarity==='史诗'?2.8:rarity==='传说'?4.5:1)*(1+lootBonus)):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
   });
   extractionZone=new THREE.Mesh(new THREE.TorusGeometry(1.55,.06,10,32),new THREE.MeshBasicMaterial({color:0x6fd09a,transparent:true,opacity:.8})); extractionZone.rotation.x=Math.PI/2; extractionZone.position.set(0,.05,-11.5); extractionZone.visible=rogueDepth>=ROGUE_LENGTH-1; roomGroup.add(extractionZone);
 }
@@ -930,14 +930,15 @@ function updateBots(dt) {
     }
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
       const bossAttack=rogueRoomType==='boss'&&bot.userData.health>0;
-      bot.userData.nextAttack=now+(bossAttack?2500:difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin));
+      const enraged=bossAttack&&bot.userData.health<=4;
+      bot.userData.nextAttack=now+(bossAttack?(enraged?1400:2500):difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin));
       const ally=botGroups.filter(b=>b.userData.team==='friend'&&b.visible).sort((a,b)=>bot.position.distanceTo(a.position)-bot.position.distanceTo(b.position))[0];
       const allyDist=ally?bot.position.distanceTo(ally.position):999;
       const targetAlly=ally&&allyDist<dist*.9;
       const from=bot.position.clone();from.y=2.05;const to=targetAlly?ally.position.clone():camera.position.clone();to.y=targetAlly?1.5:EYE;
       const tracer=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0xff4938,transparent:true,opacity:.85}));
       scene.add(tracer);enemyTracers.push({mesh:tracer,born:now});
-      if(!lineBlocked(from,to)&&Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){let damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(bossAttack)damage=Math.round(damage*1.7);if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);if(bossAttack)setPrompt('首领释放了强力攻击');}
+      if(!lineBlocked(from,to)&&Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){let damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(bossAttack)damage=Math.round(damage*(enraged?2.2:1.7));if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);if(bossAttack)setPrompt(enraged?'首领进入狂暴阶段！':'首领释放了强力攻击');}
     }
   });
 }
