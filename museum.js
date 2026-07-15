@@ -373,6 +373,10 @@ let roundNumber=0, roundState='idle', roundCountdown=0;
 let money=800;
 let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null;
 let rogueDepth=0, rogueChoices=[], rogueRoomType='combat', rogueTypes={};
+let runSeed=Number(new URLSearchParams(location.search).get('seed'))||Math.floor(Math.random()*999999);
+let relics=[], relicRooms=new Set(), relicPower=0, lootBonus=0;
+function runRandom(){const x=Math.sin(runSeed++)*10000;return x-Math.floor(x);}
+const RELICS=[['青玉佩','伤害 +1',()=>{relicPower+=1;}],['金算盘','战利品价值 +25%',()=>{lootBonus+=.25;}],['踏雪靴','移动速度 +12%',()=>{difficulty.speed*=1.12;}]];
 const ROGUE_LENGTH=8;
 const ROOM_TYPES={combat:'战斗',treasure:'宝藏',elite:'精英',event:'事件',shop:'商店',boss:'首领'};
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
@@ -490,15 +494,15 @@ function startRound(){
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
   if(rogueRoomType==='event'){playerHealth=Math.min(100,playerHealth+25);document.getElementById('health').textContent=`生命 ${playerHealth}`;setPrompt('事件房：拾取补给，生命值 +25');}
-  if(rogueRoomType==='shop')setPrompt('商店房：倒计时结束前按 B 购买装备');
+  if(rogueRoomType==='shop'){setPrompt('商店房：倒计时结束前按 B 购买装备');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
   if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
-function startRogueRun(){rogueDepth=0;rogueChoices=[];generateRogueChoices('baoyu');}
+function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;generateRogueChoices('baoyu');}
 function generateRogueChoices(fromId){
   const from=byId[fromId]; if(!from)return;
   const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');
   const linked=pool.filter(e=>(from.links||[]).includes(e.id));
-  const source=(linked.length>=3?linked:pool).sort(()=>Math.random()-.5);
+  const source=(linked.length>=3?linked:pool).sort(()=>runRandom()-.5);
   rogueChoices=source.slice(0,3).map(e=>e.id);
   const nextDepth=rogueDepth+1;
   rogueChoices.forEach((id,i)=>{
@@ -514,6 +518,12 @@ function generateRogueChoices(fromId){
 function restartRound(){
   if(!started||!byId[current])return;
   document.getElementById('round-result').style.display='none'; buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
+}
+function grantRoomRelic(id){
+  if(!['treasure','event','boss'].includes(rogueRoomType))return;
+  const key=`${rogueDepth}:${id}`; if(relicRooms.has(key))return;
+  relicRooms.add(key); const relic=RELICS[Math.floor(runRandom()*RELICS.length)];
+  relics.push(relic[0]); relic[2](); setPrompt(`获得遗物：${relic[0]}（${relic[1]}）`);
 }
 function showRoundResult(win){
   document.getElementById('result-title').textContent=win?'回合胜利':'回合失败';
@@ -531,7 +541,7 @@ function addPickups() {
     box.position.y=.35; group.add(box);
     if(isHealth){const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.52,.04),new THREE.MeshBasicMaterial({color:0xffe8d0}));cross.position.set(0,.36,.36);group.add(cross);const cross2=cross.clone();cross2.rotation.z=Math.PI/2;group.add(cross2);}
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
-    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.value=isLoot?(80+i*60):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
+    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.value=isLoot?Math.round((80+i*60)*(1+lootBonus)):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
   });
   extractionZone=new THREE.Mesh(new THREE.TorusGeometry(1.55,.06,10,32),new THREE.MeshBasicMaterial({color:0x6fd09a,transparent:true,opacity:.8})); extractionZone.rotation.x=Math.PI/2; extractionZone.position.set(0,.05,-11.5); extractionZone.visible=rogueDepth>=ROGUE_LENGTH-1; roomGroup.add(extractionZone);
 }
@@ -820,7 +830,7 @@ function hitTarget(hit,power=1,source='player') {
   const root = hit.object.userData.targetRoot;
   if (!root || !root.visible) return;
   const headshot=!!hit.object.userData.headshot;
-  root.userData.health -= headshot ? 2 : 1;
+  root.userData.health -= headshot ? 2+relicPower : 1+relicPower;
   const killed=root.userData.health<=0;
   if(source==='player'){score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();}
   if(killed&&source==='player'){money+=100;updateAmmoHud();}
@@ -1040,7 +1050,7 @@ function go(id) {
   hoverDoor = null; setPrompt(null);
   setTimeout(() => {
     current = id;
-    if(rogueChoices.includes(id)){rogueDepth=Math.min(ROGUE_LENGTH-1,rogueDepth+1);rogueRoomType=rogueTypes[id]||'combat';generateRogueChoices(id);}
+    if(rogueChoices.includes(id)){rogueDepth=Math.min(ROGUE_LENGTH-1,rogueDepth+1);rogueRoomType=rogueTypes[id]||'combat';generateRogueChoices(id);grantRoomRelic(id);}
     buildRoom(byId[id]);
     startRound();
     // 重置位置：面朝后墙说明牌
