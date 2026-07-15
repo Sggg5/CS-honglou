@@ -129,13 +129,14 @@ pistolPart(new THREE.BoxGeometry(.2,.16,.62),pistolMetal,0,.04,-.12);
 pistolPart(new THREE.CylinderGeometry(.038,.038,.5,14),gunDark,0,.05,-.48,Math.PI/2);
 pistolPart(new THREE.BoxGeometry(.16,.38,.17),gunDark,0,-.25,.02,-.18);
 const knife3d = new THREE.Group(); knife3d.position.set(.34,-.28,-.58); knife3d.rotation.z=-.18; camera.add(knife3d);
+const pistolFlash=new THREE.Mesh(new THREE.ConeGeometry(.08,.24,8),new THREE.MeshBasicMaterial({color:0xffb43c,transparent:true,opacity:.9}));pistolFlash.rotation.x=Math.PI/2;pistolFlash.position.set(0,.05,-.78);pistolFlash.visible=false;pistol3d.add(pistolFlash);
 const blade=pistolPart; // 保留下方建模函数的简洁命名
 const knifeBlade=new THREE.Mesh(new THREE.BoxGeometry(.055,.08,.72),new THREE.MeshStandardMaterial({color:0xc7cbd0,metalness:.92,roughness:.14})); knifeBlade.position.z=-.34; knife3d.add(knifeBlade);
 const knifeTip=new THREE.Mesh(new THREE.ConeGeometry(.065,.22,4),knifeBlade.material); knifeTip.rotation.x=-Math.PI/2; knifeTip.position.z=-.8; knife3d.add(knifeTip);
 const knifeGrip=new THREE.Mesh(new THREE.BoxGeometry(.11,.12,.34),gunDark); knifeGrip.position.z=.18; knife3d.add(knifeGrip);
 let weaponMode='bow';
 let audioCtx=null, soundEnabled=true;
-let bowCharging=false, chargeStarted=0;
+let bowCharging=false, chargeStarted=0, reloadProgress=0;
 const weaponState={bow:{ammo:1,reserve:30},gun:{ammo:12,reserve:48}};
 pistol3d.visible=false; knife3d.visible=false;
 function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();}
@@ -716,7 +717,7 @@ function switchWeapon(mode){
 
 function reloadWeapon() {
   if (weaponMode==='knife' || reloading || ammo === (weaponMode==='bow'?1:12) || reserve <= 0) return;
-  reloading = true; updateAmmoHud();
+  reloading = true; reloadProgress=1; updateAmmoHud();
   setTimeout(() => {
     const capacity=weaponMode==='bow'?1:12;
     const take = Math.min(capacity - ammo, reserve); ammo += take; reserve -= take;
@@ -745,6 +746,7 @@ function shoot() {
     const trail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([wp.clone(),wp.clone()]),new THREE.LineBasicMaterial({color:0xffd37a,transparent:true,opacity:.9}));scene.add(trail);
     flyingArrows.push({mesh:flying,velocity:direction.multiplyScalar(18+26*chargePower),born:now,trail,points:[wp.clone()],power:chargePower});
   } else if(weaponMode==='gun') {
+    pistolFlash.visible=true;setTimeout(()=>pistolFlash.visible=false,45);
     const origin=new THREE.Vector3(); const q=new THREE.Quaternion();
     pistol3d.getWorldPosition(origin); camera.getWorldQuaternion(q);
     const direction=new THREE.Vector3(0,0,-1).applyQuaternion(q);
@@ -919,6 +921,8 @@ function animate() {
   weapon3d.rotation.x = recoil * .08;
   heldArrow.position.z = .18 + recoil * .24;
   pistol3d.position.z=-.62+recoil*.12; pistol3d.rotation.x=recoil*.14;
+  reloadProgress=Math.max(0,reloadProgress-dt*1.25);
+  if(reloading)pistol3d.rotation.z=-Math.sin(reloadProgress*Math.PI)*.12;
   knife3d.rotation.x=recoil*.85; knife3d.position.z=-.58-recoil*.2;
   for (let i = flyingArrows.length - 1; i >= 0; i--) {
     const a = flyingArrows[i];
