@@ -512,14 +512,14 @@ function startRound(){
   missionStartedAt=performance.now()+3000;
   const themeKey=`${rogueDepth}:${current}`;
   if(roomTheme&&roomThemeApplied!==themeKey){roomThemeApplied=themeKey;roomTheme[2]();setPrompt(`${roomTheme[0]}：${roomTheme[1]}`);}
-  if(rogueRoomType==='event'){eventKind=Math.floor(runRandom()*3);setTimeout(showEventChoice,250);}
+  if(rogueRoomType==='event'){eventKind=Math.floor(runRandom()*4);setTimeout(showEventChoice,250);}
   if(rogueRoomType==='shop'){shopStock={pistol:1,bow:1,ammo:2,health:1};setPrompt('商店房：本房商品八折，倒计时结束前按 B 购买');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
   if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
 function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;runLog=[];roomThemeApplied='';runChallenge={noDamage:true,noBuy:true,bowOnly:true};generateRogueChoices('baoyu');}
 function showEventChoice(){
   const ov=document.getElementById('event-overlay'); if(!ov)return;
-  const data=[['玉露回春','饮下玉露恢复 40 生命','保留玉露，获得 ¥260'],['暗格抉择','打开暗格，获得高价值战利品','设下标记，获得攻击遗物'],['贵人相助','接受援手，获得 ¥320','拒绝援手，获得全弹药']][eventKind];
+  const data=[['玉露回春','饮下玉露恢复 40 生命','保留玉露，获得 ¥260'],['暗格抉择','打开暗格，获得高价值战利品','设下标记，获得攻击遗物'],['贵人相助','接受援手，获得 ¥320','拒绝援手，获得全弹药'],['封印残卷','接受诅咒：后续敌人伤害提高，但战利品价值 +60%','拒绝诅咒：安全离开，不获得额外奖励']][eventKind];
   document.getElementById('event-title').textContent='展厅事件'; document.getElementById('event-description').textContent=data[0];
   ov.querySelectorAll('[data-event-choice]').forEach(b=>b.textContent=data[Number(b.dataset.eventChoice)+1]); ov.style.display='flex'; eventChoiceOpen=true; if(locked)document.exitPointerLock();
 }
@@ -528,7 +528,8 @@ function chooseEvent(choice){
   const effects=[
     [()=>{playerHealth=Math.min(100,playerHealth+40);document.getElementById('health').textContent=`生命 ${playerHealth}`;},()=>{money+=260;updateAmmoHud();}],
     [()=>{lootInventory++;lootValue+=320;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;},()=>{const r=RELICS[0];relics.push(r[0]);r[2]();}],
-    [()=>{money+=320;updateAmmoHud();},()=>{weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;updateAmmoHud();}]
+    [()=>{money+=320;updateAmmoHud();},()=>{weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;updateAmmoHud();}],
+    [()=>{lootBonus+=.6;difficulty.damageMin+=2;difficulty.damageMax+=3;},()=>{}]
   ]; effects[eventKind][choice](); runLog.push(`事件${eventKind+1}-${choice?'右':'左'}`); setPrompt('事件选择已生效');
 }
 function generateRogueChoices(fromId){
