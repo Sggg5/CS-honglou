@@ -495,6 +495,7 @@ function addCombatTargets() {
     group.userData.phase = Math.random()*Math.PI*2;
     group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
     group.userData.aiState='idle';
+    group.userData.lastKnown=new THREE.Vector3(group.position.x,0,group.position.z);
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
     roomGroup.add(group); botGroups.push(group);
     if(!friendly) targetMeshes.push(body,head,chest,armL,armR,legL,legR);
@@ -911,13 +912,18 @@ function updateBots(dt) {
     if(!bot.visible)return;
     const dx=camera.position.x-bot.position.x,dz=camera.position.z-bot.position.z;
     const dist=Math.hypot(dx,dz)||1;
-    bot.userData.aiState=dist<6?'attack':(dist<17?'alert':'patrol');
+    const seesPlayer=!lineBlocked(new THREE.Vector3(bot.position.x,1.8,bot.position.z),new THREE.Vector3(camera.position.x,EYE,camera.position.z));
+    if(seesPlayer&&dist<20)bot.userData.lastKnown.set(camera.position.x,0,camera.position.z);
+    bot.userData.aiState=seesPlayer?(dist<6?'attack':(dist<17?'alert':'patrol')):(dist<20?'search':'patrol');
     bot.rotation.y=Math.atan2(dx,dz);
     bot.userData.phase+=dt*(1.5+i*.08);
-    if(dist>4.6){
+    const target=bot.userData.aiState==='search'?bot.userData.lastKnown:camera.position;
+    const tx=target.x-bot.position.x,tz=target.z-bot.position.z,td=Math.hypot(tx,tz)||1;
+    if(bot.userData.aiState==='search'&&td<1.2)bot.userData.aiState='patrol';
+    if(dist>4.6||bot.userData.aiState==='search'){
       const speed=difficulty.speed*dt;
-      bot.position.x+=dx/dist*speed+Math.cos(bot.userData.phase)*dt*.28;
-      bot.position.z+=dz/dist*speed+Math.sin(bot.userData.phase)*dt*.28;
+      bot.position.x+=tx/td*speed+Math.cos(bot.userData.phase)*dt*.28;
+      bot.position.z+=tz/td*speed+Math.sin(bot.userData.phase)*dt*.28;
     } else {
       bot.position.x+=Math.cos(bot.userData.phase)*dt*.75;
       bot.position.z+=Math.sin(bot.userData.phase)*dt*.75;
@@ -933,7 +939,7 @@ function updateBots(dt) {
       }
       return;
     }
-    if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
+    if(dist<17&&seesPlayer&&now>bot.userData.nextAttack&&playerHealth>0){
       const bossAttack=rogueRoomType==='boss'&&bot.userData.health>0;
       const enraged=bossAttack&&bot.userData.health<=4;
       bot.userData.nextAttack=now+(bossAttack?(enraged?1400:2500):difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin));
