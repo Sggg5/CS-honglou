@@ -537,11 +537,13 @@ function addPickups() {
   spots.forEach((p,i)=>{
     const group=new THREE.Group();
     const isHealth=i===0,isLoot=i>=3||rogueRoomType==='treasure';
-    const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:(isLoot?0x8e5db5:0xc48b2d),roughness:.5,metalness:.2}));
+    const rarity=isLoot?(['普通','稀有','史诗'][Math.floor(runRandom()*3)]):'';
+    const rarityColor=rarity==='史诗'?0xd66cff:(rarity==='稀有'?0x59b7ff:0x8e5db5);
+    const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:(isLoot?rarityColor:0xc48b2d),roughness:.5,metalness:.2}));
     box.position.y=.35; group.add(box);
     if(isHealth){const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.52,.04),new THREE.MeshBasicMaterial({color:0xffe8d0}));cross.position.set(0,.36,.36);group.add(cross);const cross2=cross.clone();cross2.rotation.z=Math.PI/2;group.add(cross2);}
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
-    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.value=isLoot?Math.round((80+i*60)*(1+lootBonus)):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
+    group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.rarity=rarity;group.userData.value=isLoot?Math.round((80+i*60)*(rarity==='稀有'?1.7:rarity==='史诗'?2.8:1)*(1+lootBonus)):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
   });
   extractionZone=new THREE.Mesh(new THREE.TorusGeometry(1.55,.06,10,32),new THREE.MeshBasicMaterial({color:0x6fd09a,transparent:true,opacity:.8})); extractionZone.rotation.x=Math.PI/2; extractionZone.position.set(0,.05,-11.5); extractionZone.visible=rogueDepth>=ROGUE_LENGTH-1; roomGroup.add(extractionZone);
 }
@@ -569,7 +571,7 @@ function updateWeaponDrops(dt){
 }
 
 function updatePickups(dt){
-  pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现战利品 · 价值 ¥${p.userData.value}`);}}});
+  pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现${p.userData.rarity}战利品 · 价值 ¥${p.userData.value}`);}}});
 }
 function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else extractionProgress=0;}
 function finishExtraction(){roundState='win';money+=lootValue;updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}`);showRoundResult(true);}
@@ -892,14 +894,15 @@ function updateBots(dt) {
       return;
     }
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
-      bot.userData.nextAttack=now+difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin);
+      const bossAttack=rogueRoomType==='boss'&&bot.userData.health>0;
+      bot.userData.nextAttack=now+(bossAttack?2500:difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin));
       const ally=botGroups.filter(b=>b.userData.team==='friend'&&b.visible).sort((a,b)=>bot.position.distanceTo(a.position)-bot.position.distanceTo(b.position))[0];
       const allyDist=ally?bot.position.distanceTo(ally.position):999;
       const targetAlly=ally&&allyDist<dist*.9;
       const from=bot.position.clone();from.y=2.05;const to=targetAlly?ally.position.clone():camera.position.clone();to.y=targetAlly?1.5:EYE;
       const tracer=new THREE.Line(new THREE.BufferGeometry().setFromPoints([from,to]),new THREE.LineBasicMaterial({color:0xff4938,transparent:true,opacity:.85}));
       scene.add(tracer);enemyTracers.push({mesh:tracer,born:now});
-      if(!lineBlocked(from,to)&&Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){const damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);}
+      if(!lineBlocked(from,to)&&Math.random()<Math.max(.35,.82-(targetAlly?allyDist:dist)/30)){let damage=difficulty.damageMin+Math.floor(Math.random()*(difficulty.damageMax-difficulty.damageMin+1));if(bossAttack)damage=Math.round(damage*1.7);if(targetAlly)damageAlly(ally,damage);else damagePlayer(damage);if(bossAttack)setPrompt('首领释放了强力攻击');}
     }
   });
 }
