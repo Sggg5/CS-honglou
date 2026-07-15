@@ -496,6 +496,7 @@ function addCombatTargets() {
     group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
     group.userData.aiState='idle';
     group.userData.lastKnown=new THREE.Vector3(group.position.x,0,group.position.z);
+    group.userData.role=rogueRoomType==='boss'?'boss':(i%3===0?'guard':'scout');
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
     roomGroup.add(group); botGroups.push(group);
     if(!friendly) targetMeshes.push(body,head,chest,armL,armR,legL,legR);
@@ -926,7 +927,7 @@ function updateBots(dt) {
     const tx=target.x-bot.position.x,tz=target.z-bot.position.z,td=Math.hypot(tx,tz)||1;
     if(bot.userData.aiState==='search'&&td<1.2)bot.userData.aiState='patrol';
     if(dist>4.6||bot.userData.aiState==='search'){
-      const speed=difficulty.speed*dt;
+      const speed=difficulty.speed*(bot.userData.role==='scout'?1.25:bot.userData.role==='guard'?.88:1)*dt;
       bot.position.x+=tx/td*speed+Math.cos(bot.userData.phase)*dt*.28;
       bot.position.z+=tz/td*speed+Math.sin(bot.userData.phase)*dt*.28;
     } else {
