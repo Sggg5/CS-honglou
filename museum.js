@@ -372,8 +372,9 @@ let killStreak = 0, lastKillAt = 0;
 let roundNumber=0, roundState='idle', roundCountdown=0;
 let money=800;
 let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null;
-let rogueDepth=0, rogueChoices=[];
+let rogueDepth=0, rogueChoices=[], rogueRoomType='combat', rogueTypes={};
 const ROGUE_LENGTH=8;
+const ROOM_TYPES={combat:'战斗',treasure:'宝藏',elite:'精英',event:'事件'};
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -431,7 +432,7 @@ function addCombatTargets() {
   missionComplete = false;
   missionStartedAt = performance.now();
   const spots = ENEMY_SPAWNS.map(([x,z],i)=>[x,0,z]);
-  spots.forEach((p, i) => {
+  spots.slice(0,rogueRoomType==='treasure'?3:5).forEach((p, i) => {
     const group = new THREE.Group();
     const isFrost=i===0;
     const friendly=i===1;
@@ -469,7 +470,7 @@ function addCombatTargets() {
     group.position.set(friendly?spawn[0]:p[0], 0, friendly?spawn[1]:p[2]);
     group.userData.alive = true;
     group.userData.team = friendly?'friend':'enemy';
-    group.userData.health = friendly ? 100 : (i%3===0 ? 2 : 1);
+    group.userData.health = friendly ? 100 : (rogueRoomType==='elite'?3:(i%3===0 ? 2 : 1));
     group.userData.armored = i%3===0;
     group.userData.home = new THREE.Vector3(p[0],0,p[2]);
     group.userData.phase = Math.random()*Math.PI*2;
@@ -489,7 +490,7 @@ function startRound(){
   missionStartedAt=performance.now()+3000;
 }
 function startRogueRun(){rogueDepth=0;rogueChoices=[];generateRogueChoices('baoyu');}
-function generateRogueChoices(fromId){const from=byId[fromId];if(!from)return;const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');const linked=pool.filter(e=>(from.links||[]).includes(e.id));const source=(linked.length>=3?linked:pool).sort(()=>Math.random()-.5);rogueChoices=source.slice(0,3).map(e=>e.id);}
+function generateRogueChoices(fromId){const from=byId[fromId];if(!from)return;const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');const linked=pool.filter(e=>(from.links||[]).includes(e.id));const source=(linked.length>=3?linked:pool).sort(()=>Math.random()-.5);rogueChoices=source.slice(0,3).map(e=>e.id);rogueChoices.forEach((id,i)=>{rogueTypes[id]=i===0?'combat':(i===1?'treasure':'elite');});}
 function restartRound(){
   if(!started||!byId[current])return;
   document.getElementById('round-result').style.display='none'; buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
@@ -505,7 +506,7 @@ function addPickups() {
   const spots=[[-10,0,-2],[10,0,-2],[0,0,7],[-2,0,3],[3,0,-5]];
   spots.forEach((p,i)=>{
     const group=new THREE.Group();
-    const isHealth=i===0,isLoot=i>=3;
+    const isHealth=i===0,isLoot=i>=3||rogueRoomType==='treasure';
     const box=new THREE.Mesh(new THREE.BoxGeometry(.7,.5,.7),new THREE.MeshStandardMaterial({color:isHealth?0xb52f2f:(isLoot?0x8e5db5:0xc48b2d),roughness:.5,metalness:.2}));
     box.position.y=.35; group.add(box);
     if(isHealth){const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.52,.04),new THREE.MeshBasicMaterial({color:0xffe8d0}));cross.position.set(0,.36,.36);group.add(cross);const cross2=cross.clone();cross2.rotation.z=Math.PI/2;group.add(cross2);}
@@ -886,7 +887,7 @@ function updateMission() {
   const elapsed=Math.max(0,Math.floor((now-missionStartedAt)/1000));
   document.getElementById('mission-time').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
   const status=document.getElementById('round-status');
-  document.getElementById('run-stage').textContent=`路线 ${Math.min(rogueDepth+1,ROGUE_LENGTH)} / ${ROGUE_LENGTH}`;
+  document.getElementById('run-stage').textContent=`路线 ${Math.min(rogueDepth+1,ROGUE_LENGTH)} / ${ROGUE_LENGTH} · ${ROOM_TYPES[rogueRoomType]}`;
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
@@ -1019,7 +1020,7 @@ function go(id) {
   hoverDoor = null; setPrompt(null);
   setTimeout(() => {
     current = id;
-    if(rogueChoices.includes(id)){rogueDepth=Math.min(ROGUE_LENGTH-1,rogueDepth+1);generateRogueChoices(id);}
+    if(rogueChoices.includes(id)){rogueDepth=Math.min(ROGUE_LENGTH-1,rogueDepth+1);rogueRoomType=rogueTypes[id]||'combat';generateRogueChoices(id);}
     buildRoom(byId[id]);
     startRound();
     // 重置位置：面朝后墙说明牌
@@ -1178,7 +1179,7 @@ function start() {
   document.getElementById('combat-hud').style.display = 'flex';
   updateAmmoHud();
   current = 'baoyu';
-  startRogueRun();
+  startRogueRun(); rogueRoomType='combat';
   buildRoom(byId[current]);
   startRound();
   camera.position.set(0, EYE, D / 2 - 4);
