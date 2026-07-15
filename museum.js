@@ -374,7 +374,7 @@ let money=800;
 let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null;
 let rogueDepth=0, rogueChoices=[], rogueRoomType='combat', rogueTypes={};
 const ROGUE_LENGTH=8;
-const ROOM_TYPES={combat:'战斗',treasure:'宝藏',elite:'精英',event:'事件'};
+const ROOM_TYPES={combat:'战斗',treasure:'宝藏',elite:'精英',event:'事件',shop:'商店',boss:'首领'};
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -432,7 +432,8 @@ function addCombatTargets() {
   missionComplete = false;
   missionStartedAt = performance.now();
   const spots = ENEMY_SPAWNS.map(([x,z],i)=>[x,0,z]);
-  spots.slice(0,rogueRoomType==='treasure'?3:5).forEach((p, i) => {
+  const enemyCount = rogueRoomType==='shop'||rogueRoomType==='event' ? 0 : (rogueRoomType==='boss' ? 1 : (rogueRoomType==='treasure' ? 3 : 5));
+  spots.slice(0,enemyCount).forEach((p, i) => {
     const group = new THREE.Group();
     const isFrost=i===0;
     const friendly=i===1;
@@ -470,7 +471,7 @@ function addCombatTargets() {
     group.position.set(friendly?spawn[0]:p[0], 0, friendly?spawn[1]:p[2]);
     group.userData.alive = true;
     group.userData.team = friendly?'friend':'enemy';
-    group.userData.health = friendly ? 100 : (rogueRoomType==='elite'?3:(i%3===0 ? 2 : 1));
+    group.userData.health = friendly ? 100 : (rogueRoomType==='boss'?8:(rogueRoomType==='elite'?3:(i%3===0 ? 2 : 1)));
     group.userData.armored = i%3===0;
     group.userData.home = new THREE.Vector3(p[0],0,p[2]);
     group.userData.phase = Math.random()*Math.PI*2;
@@ -488,9 +489,28 @@ function startRound(){
   const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
+  if(rogueRoomType==='event'){playerHealth=Math.min(100,playerHealth+25);document.getElementById('health').textContent=`生命 ${playerHealth}`;setPrompt('事件房：拾取补给，生命值 +25');}
+  if(rogueRoomType==='shop')setPrompt('商店房：倒计时结束前按 B 购买装备');
+  if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
 function startRogueRun(){rogueDepth=0;rogueChoices=[];generateRogueChoices('baoyu');}
-function generateRogueChoices(fromId){const from=byId[fromId];if(!from)return;const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');const linked=pool.filter(e=>(from.links||[]).includes(e.id));const source=(linked.length>=3?linked:pool).sort(()=>Math.random()-.5);rogueChoices=source.slice(0,3).map(e=>e.id);rogueChoices.forEach((id,i)=>{rogueTypes[id]=i===0?'combat':(i===1?'treasure':'elite');});}
+function generateRogueChoices(fromId){
+  const from=byId[fromId]; if(!from)return;
+  const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');
+  const linked=pool.filter(e=>(from.links||[]).includes(e.id));
+  const source=(linked.length>=3?linked:pool).sort(()=>Math.random()-.5);
+  rogueChoices=source.slice(0,3).map(e=>e.id);
+  const nextDepth=rogueDepth+1;
+  rogueChoices.forEach((id,i)=>{
+    let type='elite';
+    if(nextDepth===ROGUE_LENGTH-1&&i===0) type='boss';
+    else if(i===0) type='combat';
+    else if(i===1) type='treasure';
+    else if(nextDepth%4===0) type='shop';
+    else if(nextDepth%3===0) type='event';
+    rogueTypes[id]=type;
+  });
+}
 function restartRound(){
   if(!started||!byId[current])return;
   document.getElementById('round-result').style.display='none'; buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
@@ -513,7 +533,7 @@ function addPickups() {
     const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.018,8,24),new THREE.MeshBasicMaterial({color:isHealth?0xff7a63:0xffdb6e}));ring.rotation.x=Math.PI/2;ring.position.y=.04;group.add(ring);
     group.position.set(p[0],0,p[2]);group.userData.type=isHealth?'health':(isLoot?'loot':'ammo');group.userData.value=isLoot?(80+i*60):0;group.userData.phase=Math.random()*6;roomGroup.add(group);pickupMeshes.push(group);
   });
-  extractionZone=new THREE.Mesh(new THREE.TorusGeometry(1.55,.06,10,32),new THREE.MeshBasicMaterial({color:0x6fd09a,transparent:true,opacity:.8})); extractionZone.rotation.x=Math.PI/2; extractionZone.position.set(0,.05,-11.5); roomGroup.add(extractionZone);
+  extractionZone=new THREE.Mesh(new THREE.TorusGeometry(1.55,.06,10,32),new THREE.MeshBasicMaterial({color:0x6fd09a,transparent:true,opacity:.8})); extractionZone.rotation.x=Math.PI/2; extractionZone.position.set(0,.05,-11.5); extractionZone.visible=rogueDepth>=ROGUE_LENGTH-1; roomGroup.add(extractionZone);
 }
 
 function addCover(){
@@ -889,7 +909,7 @@ function updateMission() {
   const status=document.getElementById('round-status');
   document.getElementById('run-stage').textContent=`路线 ${Math.min(rogueDepth+1,ROGUE_LENGTH)} / ${ROGUE_LENGTH} · ${ROOM_TYPES[rogueRoomType]}`;
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
-  if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
+  if(roundState==='live'&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
     missionComplete=true; setPrompt('敌人已清除 · 前往绿色撤离点');
   }
