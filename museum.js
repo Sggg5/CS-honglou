@@ -364,6 +364,7 @@ let targetMeshes = [];
 let botGroups = [];
 let pickupMeshes = [];
 let droppedWeapons = [];
+let coverBoxes = [];
 let playerHealth = 100;
 let missionStartedAt = 0;
 let missionComplete = false;
@@ -507,6 +508,12 @@ function addPickups() {
   });
 }
 
+function addCover(){
+  coverBoxes=[]; const spots=[[-4,0,-1],[4,0,-2],[-5,0,5],[5,0,4]];
+  spots.forEach((p,i)=>{const g=new THREE.Group();const box=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.5,.9),new THREE.MeshStandardMaterial({color:i%2?0x4e3925:0x61452c,roughness:.9}));box.position.y=.75;g.add(box);for(let j=0;j<3;j++){const band=new THREE.Mesh(new THREE.BoxGeometry(.08,1.58,.94),new THREE.MeshStandardMaterial({color:0x2d2117,roughness:1}));band.position.set(-.75+j*.75,.76,0);g.add(band);}g.position.set(p[0],0,p[2]);roomGroup.add(g);coverBoxes.push({x:p[0],z:p[2],w:1.1,d:.5});});
+}
+function resolveCover(pos){coverBoxes.forEach(o=>{const dx=pos.x-o.x,dz=pos.z-o.z;if(Math.abs(dx)<o.w+1.1&&Math.abs(dz)<o.d+1.1){if(Math.abs(dx)/(o.w+1.1)>Math.abs(dz)/(o.d+1.1))pos.x=o.x+(dx<0?-(o.w+1.1):o.w+1.1);else pos.z=o.z+(dz<0?-(o.d+1.1):o.d+1.1);}});}
+
 function spawnWeaponDrop(pos){
   const type=Math.random()<.5?'bow':'gun', g=new THREE.Group();
   const color=type==='bow'?0x8e5a32:0x4f5963;
@@ -587,6 +594,7 @@ function buildRoom(ex) {
   if (cp) roomGroup.add(cp);
   addCombatTargets();
   addPickups();
+  addCover();
 }
 
 function addDoor(id, color, pos, rotY) {
@@ -923,6 +931,7 @@ function animate() {
     camera.position.add(move);
     camera.position.x = Math.max(-W / 2 + 1.4, Math.min(W / 2 - 1.4, camera.position.x));
     camera.position.z = Math.max(-D / 2 + 1.4, Math.min(D / 2 - 1.4, camera.position.z));
+    resolveCover(camera.position);
     // 不穿过中央展台
     const hd = Math.hypot(camera.position.x, camera.position.z);
     if (hd < 1.8) { const k = 1.8 / (hd || 1); camera.position.x *= k; camera.position.z *= k; }
