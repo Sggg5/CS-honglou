@@ -372,6 +372,8 @@ let killStreak = 0, lastKillAt = 0;
 let roundNumber=0, roundState='idle', roundCountdown=0;
 let money=800;
 let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null;
+let rogueDepth=0, rogueChoices=[];
+const ROGUE_LENGTH=8;
 const difficulty = { speed: 1.15, damageMin: 7, damageMax: 11, attackMin: 1300, attackMax: 2200, name:'普通' };
 const difficultyPresets = {
   easy: {speed:.72,damageMin:3,damageMax:6,attackMin:2100,attackMax:3200,name:'简单'},
@@ -486,6 +488,8 @@ function startRound(){
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
 }
+function startRogueRun(){rogueDepth=0;rogueChoices=[];generateRogueChoices('baoyu');}
+function generateRogueChoices(fromId){const from=byId[fromId];if(!from)return;const pool=EXHIBITS.filter(e=>e.id!==fromId&&e.id!=='baoyu');const linked=pool.filter(e=>(from.links||[]).includes(e.id));const source=(linked.length>=3?linked:pool).sort(()=>Math.random()-.5);rogueChoices=source.slice(0,3).map(e=>e.id);}
 function restartRound(){
   if(!started||!byId[current])return;
   document.getElementById('round-result').style.display='none'; buildRoom(byId[current]); camera.position.set(0,EYE,D/2-4); yaw=0; pitch=0; camera.rotation.set(0,0,0); startRound();
@@ -536,7 +540,7 @@ function updateWeaponDrops(dt){
 function updatePickups(dt){
   pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现战利品 · 价值 ¥${p.userData.value}`);}}});
 }
-function updateExtraction(dt){if(roundState!=='live'||!extractionZone)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;setPrompt(`撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else extractionProgress=0;}
+function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else extractionProgress=0;}
 function finishExtraction(){roundState='win';money+=lootValue;updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}`);showRoundResult(true);}
 
 function buildRoom(ex) {
@@ -576,7 +580,7 @@ function buildRoom(ex) {
   roomGroup.add(frame);
 
   // 门：左墙 + 前墙
-  const links = ex.links.slice(0, 10);
+  const links = (rogueChoices.length&&rogueDepth<ROGUE_LENGTH-1) ? rogueChoices : ex.links.slice(0,10);
   const leftN = Math.min(5, Math.ceil(links.length / 2));
   const frontN = links.length - leftN;
   const catColor = id => CATEGORIES[byId[id].category].color;
@@ -882,6 +886,7 @@ function updateMission() {
   const elapsed=Math.max(0,Math.floor((now-missionStartedAt)/1000));
   document.getElementById('mission-time').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
   const status=document.getElementById('round-status');
+  document.getElementById('run-stage').textContent=`路线 ${Math.min(rogueDepth+1,ROGUE_LENGTH)} / ${ROGUE_LENGTH}`;
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
@@ -1014,6 +1019,7 @@ function go(id) {
   hoverDoor = null; setPrompt(null);
   setTimeout(() => {
     current = id;
+    if(rogueChoices.includes(id)){rogueDepth=Math.min(ROGUE_LENGTH-1,rogueDepth+1);generateRogueChoices(id);}
     buildRoom(byId[id]);
     startRound();
     // 重置位置：面朝后墙说明牌
@@ -1172,6 +1178,7 @@ function start() {
   document.getElementById('combat-hud').style.display = 'flex';
   updateAmmoHud();
   current = 'baoyu';
+  startRogueRun();
   buildRoom(byId[current]);
   startRound();
   camera.position.set(0, EYE, D / 2 - 4);

@@ -57,6 +57,7 @@ body { font-family: "Songti SC","STSong","SimSun","Noto Serif CJK SC",serif; col
 #mission-time { color:#c8c0ae; font-variant-numeric:tabular-nums; }
 #round-status { color:#dca58b; min-width:72px; text-align:center; }
 #money { color:#d8b978; }
+#run-stage { color:#b9a8d5; }
 #buy-overlay { position:fixed; inset:0; z-index:36; display:none; align-items:center; justify-content:center; background:rgba(12,8,5,.76); }
 .buy-panel { width:min(520px,92vw); background:rgba(37,24,15,.97); border:1px solid #9b7540; box-shadow:0 20px 60px #000; padding:22px; }
 .buy-title { color:#f4e4c3; font-size:19px; letter-spacing:3px; border-bottom:1px solid #614524; padding-bottom:14px; }
