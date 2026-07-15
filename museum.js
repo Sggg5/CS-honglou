@@ -424,7 +424,8 @@ function addCombatTargets() {
   spots.forEach((p, i) => {
     const group = new THREE.Group();
     const isFrost=i===0;
-    const mat = new THREE.MeshStandardMaterial({ color: isFrost?0x9fc9eb:(i%2?0x8fc7b0:0xe6a1a8), roughness: .68 });
+    const friendly=i===1;
+    const mat = new THREE.MeshStandardMaterial({ color: isFrost?0x9fc9eb:(friendly?0x83b9d8:0xe6a1a8), roughness: .68 });
     const trim = new THREE.MeshStandardMaterial({ color: isFrost?0xd9f3ff:0xd1aa62, metalness:.2, roughness:.55 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(.92,1.15,.34), mat);
     body.position.y = 1.55; body.castShadow = true;
@@ -453,13 +454,15 @@ function addCombatTargets() {
     if(isFrost) group.add(frostHair,ponyL,ponyR,crystal);
     group.position.set(p[0], 0, p[2]);
     group.userData.alive = true;
+    group.userData.team = friendly?'friend':'enemy';
     group.userData.health = i%3===0 ? 2 : 1;
     group.userData.armored = i%3===0;
     group.userData.home = new THREE.Vector3(p[0],0,p[2]);
     group.userData.phase = Math.random()*Math.PI*2;
     group.userData.nextAttack = performance.now()+1200+Math.random()*1600;
     [body,head,chest,armL,armR,legL,legR].forEach(m => { m.castShadow=true; m.userData.targetRoot=group; });
-    roomGroup.add(group); botGroups.push(group); targetMeshes.push(body,head,chest,armL,armR,legL,legR);
+    roomGroup.add(group); botGroups.push(group);
+    if(!friendly) targetMeshes.push(body,head,chest,armL,armR,legL,legR);
   });
 }
 
@@ -789,6 +792,7 @@ function updateBots(dt) {
     bot.position.x=Math.max(-W/2+2,Math.min(W/2-2,bot.position.x));
     bot.position.z=Math.max(-D/2+2,Math.min(D/2-2,bot.position.z));
     bot.position.y=0;
+    if(bot.userData.team==='friend') return;
     if(dist<17&&now>bot.userData.nextAttack&&playerHealth>0){
       bot.userData.nextAttack=now+difficulty.attackMin+Math.random()*(difficulty.attackMax-difficulty.attackMin);
       const from=bot.position.clone();from.y=2.05;const to=camera.position.clone();
@@ -800,8 +804,9 @@ function updateBots(dt) {
 }
 
 function updateMission() {
-  const alive=botGroups.filter(b=>b.visible).length;
-  const total=botGroups.length;
+  const enemies=botGroups.filter(b=>b.userData.team==='enemy');
+  const alive=enemies.filter(b=>b.visible).length;
+  const total=enemies.length;
   document.getElementById('mission').textContent=`清除人机 ${total-alive} / ${total}`;
   const now=performance.now();
   if(roundState==='countdown'){
