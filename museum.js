@@ -403,6 +403,7 @@ document.querySelectorAll('[data-difficulty]').forEach(btn=>btn.addEventListener
 let ammo = 1, reserve = 30, score = 0, reloading = false, lastShot = 0;
 const WEAPON_TUNING={bow:{delay:550,range:32},gun:{delay:150,range:95},knife:{delay:420,range:3.2}};
 const playerVelocity=new THREE.Vector3();
+let aiming=false;
 let current = null;
 let currentCenterpiece = null;
 let detailOpen = false;
@@ -781,13 +782,16 @@ window.addEventListener('blur', clearMovementKeys);
 document.addEventListener('visibilitychange', ()=>{if(document.hidden)clearMovementKeys();});
 
 // 点击进门（准星对准门）
-canvas.addEventListener('mousedown', () => {
+canvas.addEventListener('mousedown', e => {
+  if(e.button!==0)return;
   if (!locked) return;
   wakeChrome();
   if(weaponMode==='bow'){bowCharging=true;chargeStarted=performance.now();document.getElementById('charge').style.display='block';}
   else shoot();
 });
-window.addEventListener('mouseup',()=>{if(bowCharging){bowCharging=false;document.getElementById('charge').style.display='none';shoot();}});
+window.addEventListener('mouseup',e=>{if(e.button===2)aiming=false;if(e.button===0&&bowCharging){bowCharging=false;document.getElementById('charge').style.display='none';shoot();}});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('mousedown',e=>{if(e.button===2&&locked){aiming=true;wakeChrome();}});
 
 function updateAmmoHud() {
   const names={bow:'弓箭 [1]',gun:'手枪 [2]',knife:'小刀 [3]'};
@@ -1005,7 +1009,7 @@ function animate() {
     const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
     const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     const sprint=keys['ShiftLeft']||keys['ShiftRight'];
-    const sp = (sprint?12:9)*(weaponMode==='knife'?1.05:1);
+    const sp = (sprint?12:9)*(weaponMode==='knife'?1.05:1)*(aiming?.55:1);
     const move = new THREE.Vector3();
     if (keys['KeyW']) move.add(fwd);
     if (keys['KeyS']) move.sub(fwd);
@@ -1023,6 +1027,7 @@ function animate() {
     const hd = Math.hypot(camera.position.x, camera.position.z);
     if (hd < 1.8) { const k = 1.8 / (hd || 1); camera.position.x *= k; camera.position.z *= k; }
     camera.position.y = EYE;
+    camera.fov=THREE.MathUtils.damp(camera.fov,aiming?52:70,.16,dt);camera.updateProjectionMatrix();
     camera.rotation.set(pitch, yaw, 0);
     updateHover();
   }
