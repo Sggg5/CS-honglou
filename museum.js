@@ -513,6 +513,7 @@ function addCover(){
   spots.forEach((p,i)=>{const g=new THREE.Group();const box=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.5,.9),new THREE.MeshStandardMaterial({color:i%2?0x4e3925:0x61452c,roughness:.9}));box.position.y=.75;g.add(box);for(let j=0;j<3;j++){const band=new THREE.Mesh(new THREE.BoxGeometry(.08,1.58,.94),new THREE.MeshStandardMaterial({color:0x2d2117,roughness:1}));band.position.set(-.75+j*.75,.76,0);g.add(band);}g.position.set(p[0],0,p[2]);roomGroup.add(g);coverBoxes.push({x:p[0],z:p[2],w:1.1,d:.5});});
 }
 function resolveCover(pos){coverBoxes.forEach(o=>{const dx=pos.x-o.x,dz=pos.z-o.z;if(Math.abs(dx)<o.w+1.1&&Math.abs(dz)<o.d+1.1){if(Math.abs(dx)/(o.w+1.1)>Math.abs(dz)/(o.d+1.1))pos.x=o.x+(dx<0?-(o.w+1.1):o.w+1.1);else pos.z=o.z+(dz<0?-(o.d+1.1):o.d+1.1);}});}
+function insideCover(pos){return coverBoxes.some(o=>Math.abs(pos.x-o.x)<o.w&&Math.abs(pos.z-o.z)<o.d&&pos.y<1.7);}
 
 function spawnWeaponDrop(pos){
   const type=Math.random()<.5?'bow':'gun', g=new THREE.Group();
@@ -960,6 +961,8 @@ function animate() {
     const a = flyingArrows[i];
     const previous = a.mesh.position.clone();
     const step = a.velocity.clone().multiplyScalar(dt);
+    const nextPos=previous.clone().add(step);
+    if(insideCover(nextPos)){scene.remove(a.mesh);scene.remove(a.trail);a.trail.geometry.dispose();flyingArrows.splice(i,1);continue;}
     const stepLength = step.length();
     const direction = step.clone().normalize();
     ray.set(previous, direction);
@@ -978,6 +981,7 @@ function animate() {
   }
   for(let i=flyingBullets.length-1;i>=0;i--){
     const b=flyingBullets[i], previous=b.mesh.position.clone(), step=b.velocity.clone().multiplyScalar(dt);
+    if(insideCover(previous.clone().add(step))){scene.remove(b.mesh);scene.remove(b.trail);b.trail.geometry.dispose();flyingBullets.splice(i,1);continue;}
     ray.set(previous,step.clone().normalize());
     const hit=ray.intersectObjects(targetMeshes.filter(m=>m.visible&&m.userData.targetRoot?.visible),false)[0];
     if(hit&&hit.distance<=step.length()+.08){
