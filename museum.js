@@ -917,7 +917,11 @@ function updateBots(dt) {
     bot.userData.aiState=seesPlayer?(dist<6?'attack':(dist<17?'alert':'patrol')):(dist<20?'search':'patrol');
     bot.rotation.y=Math.atan2(dx,dz);
     bot.userData.phase+=dt*(1.5+i*.08);
-    const target=bot.userData.aiState==='search'?bot.userData.lastKnown:camera.position;
+    let target=bot.userData.aiState==='search'?bot.userData.lastKnown.clone():camera.position.clone();
+    if(bot.userData.team==='enemy'&&rogueRoomType!=='boss'&&bot.userData.health<=1&&coverBoxes.length){
+      const safe=coverBoxes.slice().sort((a,b)=>Math.hypot(a.x-bot.position.x,a.z-bot.position.z)-Math.hypot(b.x-bot.position.x,b.z-bot.position.z))[0];
+      target.set(safe.x,0,safe.z); bot.userData.aiState='cover';
+    }
     const tx=target.x-bot.position.x,tz=target.z-bot.position.z,td=Math.hypot(tx,tz)||1;
     if(bot.userData.aiState==='search'&&td<1.2)bot.userData.aiState='patrol';
     if(dist>4.6||bot.userData.aiState==='search'){
