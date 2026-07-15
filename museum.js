@@ -383,6 +383,8 @@ let bestRun=JSON.parse(localStorage.getItem('hlm-best-run')||'{"version":1,"dept
 if(!bestRun.version)bestRun={version:1,depth:bestRun.depth||0,money:bestRun.money||0,time:bestRun.time||999999,unlocks:[],story:[]};
 bestRun.story=bestRun.story||[];
 let runChallenge={noDamage:true,noBuy:true,bowOnly:true};
+let runKills=0, runTask=null;
+const RUN_TASKS=[['清场专家','击杀 6 名人机',()=>runKills>=6,()=>`${runKills}/6`],['搜刮行家','带出 3 件战利品',()=>lootInventory>=3,()=>`${lootInventory}/3`],['无伤记录','无伤完成最终撤离',()=>runChallenge.noDamage,()=>runChallenge.noDamage?'进行中':'已失败']];
 function runRandom(){const x=Math.sin(runSeed++)*10000;return x-Math.floor(x);}
 const RELICS=[['青玉佩','伤害 +1',()=>{relicPower+=1;}],['金算盘','战利品价值 +25%',()=>{lootBonus+=.25;}],['踏雪靴','移动速度 +12%',()=>{difficulty.speed*=1.12;}]];
 const ROGUE_LENGTH=8;
@@ -518,7 +520,7 @@ function startRound(){
   if(rogueRoomType==='shop'){shopStock={pistol:1,bow:1,ammo:2,health:1};setPrompt('商店房：本房商品八折，倒计时结束前按 B 购买');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
   if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
-function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;runLog=[];roomThemeApplied='';runChallenge={noDamage:true,noBuy:true,bowOnly:true};generateRogueChoices('baoyu');}
+function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;runLog=[];runKills=0;roomThemeApplied='';runChallenge={noDamage:true,noBuy:true,bowOnly:true};runTask=RUN_TASKS[Math.floor(runRandom()*RUN_TASKS.length)];generateRogueChoices('baoyu');}
 function showEventChoice(){
   const ov=document.getElementById('event-overlay'); if(!ov)return;
   const data=[['玉露回春','饮下玉露恢复 40 生命','保留玉露，获得 ¥260'],['暗格抉择','打开暗格，获得高价值战利品','设下标记，获得攻击遗物'],['贵人相助','接受援手，获得 ¥320','拒绝援手，获得全弹药'],['封印残卷','接受诅咒：后续敌人伤害提高，但战利品价值 +60%','拒绝诅咒：安全离开，不获得额外奖励']][eventKind];
@@ -563,7 +565,7 @@ function grantRoomRelic(id){
 }
 function showRoundResult(win){
   document.getElementById('result-title').textContent=win?'回合胜利':'回合失败';
-  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>遗物：${relics.join('、')||'无'}<br>事件记录：${runLog.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}<br>永久解锁：${bestRun.unlocks?.join('、')||'无'}<br>已解锁篇章：${bestRun.story?.join('、')||'无'}`;
+  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>任务：${runTask?runTask[0]:'无'} · ${runTask&&runTask[2]?'完成':'未完成'}<br>遗物：${relics.join('、')||'无'}<br>事件记录：${runLog.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}<br>永久解锁：${bestRun.unlocks?.join('、')||'无'}<br>已解锁篇章：${bestRun.story?.join('、')||'无'}`;
   document.getElementById('round-result').style.display='flex'; if(locked)document.exitPointerLock();
 }
 
@@ -610,7 +612,7 @@ function updatePickups(dt){
   pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现${p.userData.rarity}战利品 · 价值 ¥${p.userData.value}`);}}});
 }
 function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;if(extractionProgress>1.2&&!extractionAlarmed){extractionAlarmed=true;setPrompt('撤离警报！离开撤离圈可重置警报');}if(extractionAlarmed){extractionPulse+=dt;if(extractionPulse>1.1){extractionPulse=0;damagePlayer(4);}}else setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else {extractionProgress=0;extractionAlarmed=false;extractionPulse=0;}}
-function finishExtraction(){roundState='win';money+=lootValue;bestRun.depth=Math.max(bestRun.depth,rogueDepth+1);bestRun.money=Math.max(bestRun.money,money);bestRun.time=Math.min(bestRun.time,Math.floor((performance.now()-missionStartedAt)/1000));const unlocked=[];if(runChallenge.noDamage)unlocked.push('无伤撤离');if(runChallenge.noBuy)unlocked.push('禁购通关');if(runChallenge.bowOnly)unlocked.push('弓箭大师');bestRun.unlocks=[...new Set([...(bestRun.unlocks||[]),...unlocked])];const chapter=STORY_CHAPTERS[rogueDepth%STORY_CHAPTERS.length];if(!bestRun.story.includes(chapter))bestRun.story.push(chapter);localStorage.setItem('hlm-best-run',JSON.stringify(bestRun));updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}${unlocked.length?' · 解锁 '+unlocked.join('、'):''}`);showRoundResult(true);}
+function finishExtraction(){roundState='win';money+=lootValue;bestRun.depth=Math.max(bestRun.depth,rogueDepth+1);bestRun.money=Math.max(bestRun.money,money);bestRun.time=Math.min(bestRun.time,Math.floor((performance.now()-missionStartedAt)/1000));const unlocked=[];if(runChallenge.noDamage)unlocked.push('无伤撤离');if(runChallenge.noBuy)unlocked.push('禁购通关');if(runChallenge.bowOnly)unlocked.push('弓箭大师');const taskComplete=runTask&&runTask[2]();if(taskComplete)unlocked.push(`任务：${runTask[0]}`);bestRun.unlocks=[...new Set([...(bestRun.unlocks||[]),...unlocked])];const chapter=STORY_CHAPTERS[rogueDepth%STORY_CHAPTERS.length];if(!bestRun.story.includes(chapter))bestRun.story.push(chapter);localStorage.setItem('hlm-best-run',JSON.stringify(bestRun));updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}${unlocked.length?' · 解锁 '+unlocked.join('、'):''}`);showRoundResult(true);}
 
 function buildRoom(ex) {
   disposeGroup(roomGroup);
@@ -878,7 +880,7 @@ function hitTarget(hit,power=1,source='player') {
   root.userData.health -= Math.max(1,(headshot ? 2 : 1)+relicPower-(armoredHit?1:0));
   const killed=root.userData.health<=0;
   if(source==='player'){score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();}
-  if(killed&&source==='player'){money+=100;updateAmmoHud();}
+  if(killed&&source==='player'){runKills++;money+=100;updateAmmoHud();}
   if(!killed){
     const text=document.getElementById('combat-text');text.textContent=armoredHit?'护甲命中':'命中';text.style.color=armoredHit?'#f5c96a':'#d9f3ff';text.style.left='50%';text.style.top='45%';text.classList.remove('show');void text.offsetWidth;text.classList.add('show');sound('hit');return;
   }
@@ -976,6 +978,7 @@ function updateMission() {
   const status=document.getElementById('round-status');
   document.getElementById('run-stage').textContent=`路线 ${Math.min(rogueDepth+1,ROGUE_LENGTH)} / ${ROGUE_LENGTH} · ${ROOM_TYPES[rogueRoomType]}`;
   const challengeEl=document.getElementById('challenge');if(challengeEl)challengeEl.textContent=`挑战：${runChallenge.noDamage?'无伤':'受伤'} · ${runChallenge.noBuy?'禁购':'已购买'} · ${runChallenge.bowOnly?'弓箭':'多武器'}`;
+  const taskEl=document.getElementById('task');if(taskEl&&runTask)taskEl.textContent=`任务：${runTask[0]} · ${runTask[3]()}`;
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
