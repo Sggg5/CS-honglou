@@ -974,6 +974,7 @@ function updateMission() {
   document.getElementById('mission-time').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
   const status=document.getElementById('round-status');
   document.getElementById('run-stage').textContent=`路线 ${Math.min(rogueDepth+1,ROGUE_LENGTH)} / ${ROGUE_LENGTH} · ${ROOM_TYPES[rogueRoomType]}`;
+  const challengeEl=document.getElementById('challenge');if(challengeEl)challengeEl.textContent=`挑战：${runChallenge.noDamage?'无伤':'受伤'} · ${runChallenge.noBuy?'禁购':'已购买'} · ${runChallenge.bowOnly?'弓箭':'多武器'}`;
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
