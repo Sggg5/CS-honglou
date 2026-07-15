@@ -401,7 +401,7 @@ document.querySelectorAll('[data-difficulty]').forEach(btn=>btn.addEventListener
   document.querySelectorAll('[data-difficulty]').forEach(b=>b.classList.toggle('selected',b===btn));
 }));
 let ammo = 1, reserve = 30, score = 0, reloading = false, lastShot = 0;
-const WEAPON_TUNING={bow:{delay:550,range:32},gun:{delay:150,range:95},knife:{delay:420,range:3.2}};
+const WEAPON_TUNING={bow:{delay:550,range:32,spread:0},gun:{delay:150,range:95,spread:.028},knife:{delay:420,range:3.2,spread:0}};
 const playerVelocity=new THREE.Vector3();
 let aiming=false;
 let current = null;
@@ -830,7 +830,7 @@ function shoot() {
   const delay=WEAPON_TUNING[weaponMode].delay;
   if (reloading || now - lastShot < delay) return;
   if (weaponMode!=='knife' && ammo <= 0) { reloadWeapon(); return; }
-  lastShot = now; recoil = 1;
+  lastShot = now; recoil = weaponMode==='gun'?(aiming?.65:1.3):(weaponMode==='bow'?.45:1);
   sound(weaponMode);
   if(weaponMode!=='knife'){ammo--;updateAmmoHud();}
   if(weaponMode==='bow'){
@@ -847,6 +847,7 @@ function shoot() {
     const origin=new THREE.Vector3(); const q=new THREE.Quaternion();
     pistol3d.getWorldPosition(origin); camera.getWorldQuaternion(q);
     const direction=new THREE.Vector3(0,0,-1).applyQuaternion(q);
+    const spread=WEAPON_TUNING.gun.spread*(aiming?.28:1); direction.x+=(Math.random()-.5)*spread; direction.y+=(Math.random()-.5)*spread; direction.normalize();
     const bullet=new THREE.Mesh(new THREE.SphereGeometry(.025,6,4),new THREE.MeshBasicMaterial({color:0xffe4a0}));
     bullet.position.copy(origin); scene.add(bullet);
     const trail=new THREE.Line(new THREE.BufferGeometry().setFromPoints([origin.clone(),origin.clone()]),new THREE.LineBasicMaterial({color:0xffb347,transparent:true,opacity:.95}));scene.add(trail);
