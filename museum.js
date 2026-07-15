@@ -375,6 +375,7 @@ let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null, ext
 let rogueDepth=0, rogueChoices=[], rogueRoomType='combat', rogueTypes={};
 let runSeed=Number(new URLSearchParams(location.search).get('seed'))||Math.floor(Math.random()*999999);
 let relics=[], relicRooms=new Set(), relicPower=0, lootBonus=0;
+let bestRun=JSON.parse(localStorage.getItem('hlm-best-run')||'{"depth":0,"money":0,"time":999999}');
 function runRandom(){const x=Math.sin(runSeed++)*10000;return x-Math.floor(x);}
 const RELICS=[['青玉佩','伤害 +1',()=>{relicPower+=1;}],['金算盘','战利品价值 +25%',()=>{lootBonus+=.25;}],['踏雪靴','移动速度 +12%',()=>{difficulty.speed*=1.12;}]];
 const ROGUE_LENGTH=8;
@@ -533,7 +534,7 @@ function grantRoomRelic(id){
 }
 function showRoundResult(win){
   document.getElementById('result-title').textContent=win?'回合胜利':'回合失败';
-  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}`;
+  document.getElementById('result-detail').innerHTML=`第 ${roundNumber} 回合<br>击杀分数：${score}<br>当前金钱：¥ ${money}<br>本局种子：${runSeed}<br>遗物：${relics.join('、')||'无'}<br>最高路线：${bestRun.depth}/${ROGUE_LENGTH}`;
   document.getElementById('round-result').style.display='flex'; if(locked)document.exitPointerLock();
 }
 
@@ -580,7 +581,7 @@ function updatePickups(dt){
   pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现${p.userData.rarity}战利品 · 价值 ¥${p.userData.value}`);}}});
 }
 function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;if(extractionProgress>1.2&&!extractionAlarmed){extractionAlarmed=true;setPrompt('撤离警报！离开撤离圈可重置警报');}if(extractionAlarmed){extractionPulse+=dt;if(extractionPulse>1.1){extractionPulse=0;damagePlayer(4);}}else setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else {extractionProgress=0;extractionAlarmed=false;extractionPulse=0;}}
-function finishExtraction(){roundState='win';money+=lootValue;updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}`);showRoundResult(true);}
+function finishExtraction(){roundState='win';money+=lootValue;bestRun.depth=Math.max(bestRun.depth,rogueDepth+1);bestRun.money=Math.max(bestRun.money,money);bestRun.time=Math.min(bestRun.time,Math.floor((performance.now()-missionStartedAt)/1000));localStorage.setItem('hlm-best-run',JSON.stringify(bestRun));updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}`);showRoundResult(true);}
 
 function buildRoom(ex) {
   disposeGroup(roomGroup);
