@@ -66,6 +66,9 @@ EXHIBITS.push(...EXTRA_CHARS_UNIQUE);
 const W = 28, D = 28, H = 13;          // 展厅尺寸
 const EYE = 1.7;                        // 视点高度
 const FONT = '"Songti SC","STSong","SimSun","Noto Serif CJK SC",serif';
+const PLAYER_SPAWNS=[[-8,9],[0,10],[8,9]];
+const ALLY_SPAWNS=[[-10,4],[10,4]];
+const ENEMY_SPAWNS=[[-7,-6],[7,-7],[-8,5],[8,6],[0,-9]];
 
 const canvas = document.getElementById('scene');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -420,11 +423,12 @@ function addCombatTargets() {
   botGroups = [];
   missionComplete = false;
   missionStartedAt = performance.now();
-  const spots = [[-7,0,-6],[7,0,-7],[-8,0,5],[8,0,6],[0,0,-9]];
+  const spots = ENEMY_SPAWNS.map(([x,z],i)=>[x,0,z]);
   spots.forEach((p, i) => {
     const group = new THREE.Group();
     const isFrost=i===0;
     const friendly=i===1;
+    const spawn=friendly?ALLY_SPAWNS[0]:spots[i-(i>1?1:0)];
     const mat = new THREE.MeshStandardMaterial({ color: isFrost?0x9fc9eb:(friendly?0x83b9d8:0xe6a1a8), roughness: .68 });
     const trim = new THREE.MeshStandardMaterial({ color: isFrost?0xd9f3ff:0xd1aa62, metalness:.2, roughness:.55 });
     const body = new THREE.Mesh(new THREE.BoxGeometry(.92,1.15,.34), mat);
@@ -452,7 +456,7 @@ function addCombatTargets() {
     stand.position.y = .08;
     group.add(body, head, eyeL, eyeR, cheekL, cheekR, smile, chest, armL, armR, legL, legR, stand);
     if(isFrost) group.add(frostHair,ponyL,ponyR,crystal);
-    group.position.set(p[0], 0, p[2]);
+    group.position.set(friendly?spawn[0]:p[0], 0, friendly?spawn[1]:p[2]);
     group.userData.alive = true;
     group.userData.team = friendly?'friend':'enemy';
     group.userData.health = i%3===0 ? 2 : 1;
@@ -469,6 +473,8 @@ function addCombatTargets() {
 function startRound(){
   roundNumber++; roundState='countdown'; roundCountdown=3; playerHealth=100; missionComplete=false;
   document.getElementById('health').textContent='生命 100';
+  const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
+  camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
 }
 function restartRound(){
