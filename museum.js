@@ -493,8 +493,13 @@ function startRound(){
   const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
   missionStartedAt=performance.now()+3000;
-  if(rogueRoomType==='event'){playerHealth=Math.min(100,playerHealth+25);document.getElementById('health').textContent=`生命 ${playerHealth}`;setPrompt('事件房：拾取补给，生命值 +25');}
-  if(rogueRoomType==='shop'){setPrompt('商店房：倒计时结束前按 B 购买装备');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
+  if(rogueRoomType==='event'){
+    const event=runRandom();
+    if(event<.34){playerHealth=Math.min(100,playerHealth+25);document.getElementById('health').textContent=`生命 ${playerHealth}`;setPrompt('事件：玉露回春，生命值 +25');}
+    else if(event<.67){money+=180;updateAmmoHud();setPrompt('事件：贵人相助，获得 ¥180');}
+    else {lootValue+=120;lootInventory++;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;setPrompt('事件：暗格发现，获得额外战利品 ¥120');}
+  }
+  if(rogueRoomType==='shop'){setPrompt('商店房：本房商品八折，倒计时结束前按 B 购买');setTimeout(()=>{if(roundState==='countdown')toggleBuy();},350);}
   if(rogueRoomType==='boss')setPrompt('首领房：击败高生命首领，获得额外战利品');
 }
 function startRogueRun(){rogueDepth=0;rogueChoices=[];relics=[];relicRooms.clear();relicPower=0;lootBonus=0;generateRogueChoices('baoyu');}
@@ -1157,7 +1162,7 @@ function closeSearch() { document.getElementById('search-overlay').style.display
 function toggleBuy(){const ov=document.getElementById('buy-overlay');if(ov.style.display==='flex'){ov.style.display='none';}else{ov.style.display='flex';if(locked)document.exitPointerLock();}}
 function buyItem(type){
   if(roundState!=='countdown')return;
-  const costs={pistol:400,bow:300,ammo:100,health:250};if(money<costs[type]){setPrompt('金钱不足');return;}money-=costs[type];
+  const costs={pistol:400,bow:300,ammo:100,health:250};const cost=Math.round(costs[type]*(rogueRoomType==='shop'?.8:1));if(money<cost){setPrompt(`金钱不足，需要 ¥${cost}`);return;}money-=cost;
   if(type==='pistol'){weaponState.gun.reserve+=12;switchWeapon('gun');}
   if(type==='bow'){weaponState.bow.reserve+=8;switchWeapon('bow');}
   if(type==='ammo'){weaponState.gun.reserve+=12;weaponState.bow.reserve+=8;reserve=weaponState[weaponMode]?.reserve||reserve;}
