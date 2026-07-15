@@ -778,6 +778,7 @@ function hitTarget(hit,power=1) {
   root.userData.health -= headshot ? 2 : 1;
   const killed=root.userData.health<=0;
   score += killed ? (headshot ? 2 : (power>.8 ? 2 : 1)) : 0; updateAmmoHud();
+  if(killed){money+=100;updateAmmoHud();}
   if(!killed){
     const text=document.getElementById('combat-text');text.textContent='命中';text.style.left='50%';text.style.top='45%';text.classList.remove('show');void text.offsetWidth;text.classList.add('show');sound('hit');return;
   }
@@ -849,7 +850,7 @@ function updateMission() {
   status.textContent=roundState==='countdown'?`${roundCountdown} 秒`:(roundState==='live'?`第 ${roundNumber} 回合`:(roundState==='win'?'胜利':'失败'));
   if(roundState==='live'&&total>0&&alive===0&&!missionComplete){
     missionComplete=true; document.getElementById('mission').textContent='展厅已清除 ✓';
-    roundState='win'; setPrompt(`第 ${roundNumber} 回合胜利 · 按 N 再来一回合`);
+    roundState='win'; money+=300; updateAmmoHud(); setPrompt(`第 ${roundNumber} 回合胜利 · 奖励 ¥300 · 按 N 再来一回合`);
   }
 }
 
