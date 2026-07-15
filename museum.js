@@ -371,7 +371,7 @@ let missionComplete = false;
 let killStreak = 0, lastKillAt = 0;
 let roundNumber=0, roundState='idle', roundCountdown=0;
 let money=800;
-let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null;
+let lootInventory=0, lootValue=0, extractionProgress=0, extractionZone=null, extractionAlarmed=false, extractionPulse=0;
 let rogueDepth=0, rogueChoices=[], rogueRoomType='combat', rogueTypes={};
 let runSeed=Number(new URLSearchParams(location.search).get('seed'))||Math.floor(Math.random()*999999);
 let relics=[], relicRooms=new Set(), relicPower=0, lootBonus=0;
@@ -489,6 +489,7 @@ function addCombatTargets() {
 function startRound(){
   roundNumber++; roundState='countdown'; roundCountdown=3; playerHealth=100; missionComplete=false;
   lootInventory=0; lootValue=0; document.getElementById('loot').textContent='战利品 0';
+  extractionProgress=0; extractionAlarmed=false; extractionPulse=0;
   document.getElementById('health').textContent='生命 100';
   const spawn=PLAYER_SPAWNS[Math.floor(Math.random()*PLAYER_SPAWNS.length)];
   camera.position.set(spawn[0],EYE,spawn[1]); yaw=0; pitch=0; camera.rotation.set(0,0,0);
@@ -578,7 +579,7 @@ function updateWeaponDrops(dt){
 function updatePickups(dt){
   pickupMeshes.forEach(p=>{if(!p.visible)return;p.userData.phase+=dt*2;p.position.y=Math.sin(p.userData.phase)*.06; p.rotation.y+=dt*.5;const d=p.position.distanceTo(camera.position);if(d<1.45){if(p.userData.type==='health'&&playerHealth<100){playerHealth=Math.min(100,playerHealth+35);document.getElementById('health').textContent=`生命 ${playerHealth}`;p.visible=false;sound('hit');setPrompt('医疗包 +35');}else if(p.userData.type==='ammo'){weaponState.bow.reserve+=8;weaponState.gun.reserve+=12;reserve+=weaponMode==='bow'?8:12;updateAmmoHud();p.visible=false;sound('hit');setPrompt('弹药补给');}else if(p.userData.type==='loot'){lootInventory++;lootValue+=p.userData.value;document.getElementById('loot').textContent=`战利品 ${lootInventory}`;p.visible=false;sound('hit');setPrompt(`发现${p.userData.rarity}战利品 · 价值 ¥${p.userData.value}`);}}});
 }
-function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else extractionProgress=0;}
+function updateExtraction(dt){if(roundState!=='live'||!extractionZone||rogueDepth<ROGUE_LENGTH-1)return;const d=extractionZone.position.distanceTo(camera.position);if(d<2.2){extractionProgress+=dt;if(extractionProgress>1.2&&!extractionAlarmed){extractionAlarmed=true;setPrompt('撤离警报！离开撤离圈可重置警报');}if(extractionAlarmed){extractionPulse+=dt;if(extractionPulse>1.1){extractionPulse=0;damagePlayer(4);}}else setPrompt(`最终撤离中 ${Math.min(100,Math.floor(extractionProgress/3*100))}%`);if(extractionProgress>=3)finishExtraction();}else {extractionProgress=0;extractionAlarmed=false;extractionPulse=0;}}
 function finishExtraction(){roundState='win';money+=lootValue;updateAmmoHud();setPrompt(`撤离成功 · 战利品价值 ¥${lootValue}`);showRoundResult(true);}
 
 function buildRoom(ex) {
